@@ -1,0 +1,37 @@
+[
+  {
+    "variable": "promotion",
+    "beta": 0.7124845041542901,
+    "p_value": 9.816084022998968e-06,
+    "pct_impact": 103.9051001251694,
+    "significant": true
+  },
+  {
+    "variable": "strike",
+    "beta": -0.6583610566270252,
+    "p_value": 0.08106315613670838,
+    "pct_impact": -48.2300880893106,
+    "significant": false
+  },
+  {
+    "variable": "war",
+    "beta": -0.23279831562462525,
+    "p_value": 7.416171614219547e-10,
+    "pct_impact": -20.768664536487368,
+    "significant": true
+  },
+  {
+    "variable": "logistics",
+    "beta": -0.22657538772404803,
+    "p_value": 8.982864566750984e-05,
+    "pct_impact": -20.274076351192015,
+    "significant": true
+  },
+  {
+    "variable": "other_incident",
+    "beta": -0.12083825950735248,
+    "p_value": 0.05727259463712218,
+    "pct_impact": -11.382272124805414,
+    "significant": false
+  }
+]
