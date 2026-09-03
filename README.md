@@ -12,7 +12,7 @@ escenarios ("¿y si hay una huelga la semana que viene?").
 
 ## Ver la app
 
-🔗 **[Abrir la app](https://forecast-ventas-retail-app.streamlit.app)** _(sustituye este enlace por la URL real una vez desplegada en Streamlit Cloud)_
+🔗 **[Abrir la app](https://forecast-ventas-retail-app-w5msdvcsbuxas94qjcdore.streamlit.app)**
 
 ## De qué trata, en dos frases
 
