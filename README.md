@@ -2,9 +2,9 @@
 
 **¿Cuánto le cuesta a un negocio no ver venir una huelga, una guerra o una promoción?**
 
-Una aplicación interactiva que cuenta, paso a paso, cómo se construyó un modelo de
-previsión de ventas capaz de tener en cuenta lo que pasa *fuera* del negocio —no solo
-el histórico de ventas— y cuánto mejora eso la predicción.
+Una aplicación interactiva que cuenta, paso a paso, cómo construí un modelo de
+previsión de ventas capaz de tener en cuenta lo que pasa *fuera* del negocio (no solo
+el histórico de ventas) y cuánto mejora eso la predicción.
 
 No hace falta saber nada de Machine Learning para seguirla: empieza por el problema,
 sigue por los datos, y termina dejándote probar el modelo tú mismo con tus propios
@@ -19,8 +19,8 @@ escenarios ("¿y si hay una huelga la semana que viene?").
 Una cadena retail necesita saber cuánto va a vender cada semana para planificar
 inventario y personal. Un modelo que solo mira el pasado se equivoca más de lo
 necesario porque no sabe que hubo una huelga, una promoción o un conflicto que movió
-las cifras — así que se construyeron **dos modelos** (uno que solo mira el histórico y
-otro que además tiene en cuenta esos eventos) y se comparó cuál acierta más.
+las cifras. Así que construí **dos modelos** (uno que solo mira el histórico y otro
+que además tiene en cuenta esos eventos) y comparé cuál acertaba más.
 
 **El resultado:** tener en cuenta el contexto reduce el error de predicción un 32%.
 
@@ -42,9 +42,9 @@ Python + [Streamlit](https://streamlit.io) para la aplicación, y
 temporales. El análisis completo, en formato notebook, está en el
 [repositorio de portfolio](https://github.com/BORJAMOME/Data-Analytics-Portfolio/tree/main/03-Machine-Learning/04-series-temporales/arima/03-forecast-ventas-retail).
 
-Todos los números que aparecen en la app (el error del modelo, el peso de cada evento,
-los resultados del backtesting...) se calculan una vez en `model/train.py` y se guardan
-como datos — nada está escrito a mano, así que si cambian los datos de entrada, basta
+Calculé todos los números que aparecen en la app (el error del modelo, el peso de cada
+evento, los resultados del backtesting...) una vez en `model/train.py` y los guardé
+como datos: nada está escrito a mano, así que si cambian los datos de entrada, basta
 con volver a ejecutar ese script para que toda la narrativa se actualice sola.
 
 ## Ejecutarla en tu ordenador
@@ -82,9 +82,9 @@ data/                      el dataset original
 assets/style.css           el sistema visual de la app
 ```
 
-El modelo final se reconstruye al vuelo a partir de sus parámetros ya ajustados
-(`model/artifacts/final_params.json`) en vez de cargar el modelo completo desde disco
-— es instantáneo y evita guardar un archivo de cientos de MB.
+Reconstruyo el modelo final al vuelo a partir de sus parámetros ya ajustados
+(`model/artifacts/final_params.json`) en vez de cargar el modelo completo desde disco:
+es instantáneo y evita guardar un archivo de cientos de MB.
 </details>
 
 ---
