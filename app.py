@@ -96,7 +96,7 @@ st.markdown(
     <div id="top" class="hero-wrap">
       <p class="hero-kicker">Machine Learning Case Study · Series Temporales</p>
       <h1 class="hero-title">¿Cuánto le cuesta a un negocio retail <em>no ver venir</em> una huelga, una guerra o una promoción?</h1>
-      <p class="hero-sub">Un modelo de series temporales aplicado a la previsión semanal de ventas de una cadena retail, comparando qué ocurre cuando el modelo solo mira el histórico frente a cuando también sabe qué está pasando en el mundo.</p>
+      <p class="hero-sub">Apliqué un modelo de series temporales a la previsión semanal de ventas de una cadena retail, comparando qué ocurre cuando solo mira el histórico frente a cuando también sabe qué está pasando en el mundo.</p>
       <div class="hero-meta">
         <span class="hero-pill">Borja Mora Méndez</span>
         <span class="hero-pill">Python · statsmodels (SARIMAX)</span>
@@ -131,11 +131,10 @@ ui.kpi_grid([
 st.write("")
 ui.question_block(
     "La pregunta de negocio",
-    '¿Podemos anticipar el impacto de una huelga, una guerra o una promoción '
+    '¿Se puede anticipar el impacto de una huelga, una guerra o una promoción '
     '<span class="accent">antes de que ocurra</span>, y usarlo para planificar?',
-    "No se trata solo de predecir mejor: se trata de convertir el modelo en una "
-    "herramienta de simulación — \"¿qué pasa si...?\" — para decisiones de inventario, "
-    "personal y campañas.",
+    "Quise convertir el modelo en algo más que un predictor: una herramienta de "
+    "simulación, \"¿qué pasa si...?\", para decisiones de inventario, personal y campañas.",
 )
 ui.section_close()
 
@@ -144,10 +143,10 @@ ui.section_open("datos")
 ui.eyebrow("Materia prima")
 ui.h2("Los datos")
 ui.lead(
-    "156 observaciones semanales de ventas en euros, con 5 señales externas registradas "
-    "cada semana: intensidad de promoción, huelgas, conflicto bélico, problemas logísticos "
-    "y otras incidencias. Sin huecos, sin duplicados — el reto no está en limpiar los datos, "
-    "está en decidir si esas 5 señales realmente ayudan a predecir mejor."
+    "Trabajé con 156 observaciones semanales de ventas en euros, con 5 señales externas "
+    "registradas cada semana: intensidad de promoción, huelgas, conflicto bélico, problemas "
+    "logísticos y otras incidencias. Sin huecos, sin duplicados. El reto no estuvo en limpiar "
+    "los datos, sino en decidir si esas 5 señales realmente ayudaban a predecir mejor."
 )
 ui.kpi_grid([
     {"num": f"{n_weeks}", "label": "observaciones semanales"},
@@ -175,18 +174,19 @@ for c, col in zip(cols, EXOG_COLS):
         )
 st.write("")
 ui.finding(
-    "En el histórico no hay ninguna semana con más de un evento simultáneo — "
-    "cada incidente aparece aislado. Por eso el <b>Playground</b> más abajo permite combinarlos: "
-    "así se simula lo que el histórico nunca mostró."
+    "En el histórico no hay ninguna semana con más de un evento simultáneo: cada incidente "
+    "aparece aislado. Por eso diseñé el <b>Playground</b> de más abajo para que puedas "
+    "combinarlos y simular lo que el histórico nunca mostró."
 )
 ui.section_close()
 
 # ============================================================ EXPLORACIÓN ==
 ui.section_open("exploracion")
 ui.eyebrow("Antes de modelar")
-ui.h2("¿Qué nos dicen los datos?")
-ui.lead("Tres preguntas simples antes de tocar ningún algoritmo: ¿cómo se mueven las ventas?, "
-        "¿se nota el efecto de los eventos a simple vista?, ¿las promociones realmente venden más?")
+ui.h2("¿Qué me dicen los datos?")
+ui.lead("Antes de tocar ningún algoritmo, me hice tres preguntas simples: ¿cómo se mueven las "
+        "ventas?, ¿se nota el efecto de los eventos a simple vista?, ¿las promociones realmente "
+        "venden más?")
 
 h3_1, h3_2 = st.columns([1, 1])
 with h3_1:
@@ -197,16 +197,16 @@ st.plotly_chart(charts.sales_evolution(df), use_container_width=True, config={"d
 ui.finding(
     f"Venta media semanal de <b>{eur(df['sales'].mean())}</b> "
     f"(rango {eur(df['sales'].min())} – {eur(df['sales'].max())}), con una tendencia de fondo "
-    "al alza que la media móvil de 12 semanas deja ver con claridad. Hay estacionalidad, pero también ruido — "
-    "ahí es donde entran los eventos externos.",
+    "al alza que la media móvil de 12 semanas deja ver con claridad. Hay estacionalidad, pero también "
+    "ruido: ahí es donde entran los eventos externos.",
 )
 
 ui.h3("Ventas con incidencias superpuestas")
 st.plotly_chart(charts.sales_with_events(df), use_container_width=True, config={"displayModeBar": False})
 ui.finding(
     "Las caídas más pronunciadas de la serie coinciden visualmente con huelgas y problemas logísticos, "
-    "y los picos más altos suelen coincidir con promociones. Es una pista, no una prueba — "
-    "para cuantificarla hace falta un modelo."
+    "y los picos más altos suelen coincidir con promociones. Es una pista, no una prueba: para "
+    "cuantificarla necesitaba un modelo."
 )
 
 ui.h3("¿Las promociones venden más?")
@@ -214,8 +214,8 @@ st.plotly_chart(charts.promotion_boxplot(df), use_container_width=True, config={
 diff_pct = (df.loc[df["promotion"] > 0, "sales"].mean() / df.loc[df["promotion"] == 0, "sales"].mean() - 1) * 100
 ui.finding(
     f"Las semanas con promoción activa venden de media un {ui.stat(f'{diff_pct:.1f}% más', 'pos')} que las "
-    "semanas sin ella. Es una diferencia visible incluso antes de modelar — buena señal de que la variable "
-    "va a aportar."
+    "semanas sin ella. Es una diferencia visible incluso antes de modelar: buena señal de que la variable "
+    "iba a aportar."
 )
 ui.section_close()
 
@@ -224,23 +224,23 @@ ui.section_open("metodologia")
 ui.eyebrow("Cómo se llegó al modelo")
 ui.h2("El camino hasta el modelo")
 ui.lead(
-    "En series temporales no se puede barajar el tiempo: hay que respetar el orden en que "
+    "En series temporales no se puede barajar el tiempo. Tuve que respetar el orden en que "
     "ocurrieron las cosas. Así fue el recorrido, paso a paso."
 )
 ui.story_steps([
-    ("Miramos los datos",
-     "Analizamos tres años de ventas para entender el patrón de fondo antes de tocar ningún "
+    ("Miré los datos",
+     "Analicé tres años de ventas para entender el patrón de fondo antes de tocar ningún "
      "modelo: estacionalidad, tendencia, ruido."),
-    ("Probamos con solo el pasado",
-     "Entrenamos un primer modelo — SARIMA — que únicamente mira el histórico de ventas. Es el "
-     "punto de partida honesto: si lo que viene después no lo mejora, el contexto no vale nada."),
-    ("Añadimos el contexto",
-     "Incorporamos huelgas, guerra, logística y promociones a ese mismo modelo (SARIMAX) para "
+    ("Probé con solo el pasado",
+     "Entrené un primer modelo, SARIMA, que únicamente mira el histórico de ventas. Fue el "
+     "punto de partida honesto: si lo que venía después no lo mejoraba, el contexto no valía nada."),
+    ("Añadí el contexto",
+     "Incorporé huelgas, guerra, logística y promociones a ese mismo modelo (SARIMAX) para "
      "comprobar si esa información realmente cambiaba algo."),
-    (f"Validamos sin hacer trampas",
-     f"Reservamos las últimas {model_config['test_weeks']} semanas para comprobar cada modelo con datos que "
-     "nunca había visto, y repetimos el experimento en 13 ventanas distintas del pasado para no "
-     "fiarnos de un golpe de suerte."),
+    ("Validé sin hacer trampas",
+     f"Reservé las últimas {model_config['test_weeks']} semanas para comprobar cada modelo con datos que "
+     "nunca había visto, y repetí el experimento en 13 ventanas distintas del pasado para no "
+     "fiarme de un golpe de suerte."),
 ])
 
 with st.expander("Para quien quiera el detalle técnico — estacionariedad, ACF/PACF, órdenes del modelo"):
@@ -264,8 +264,8 @@ st.write("")
 st.plotly_chart(charts.train_test_split(df, model_config["test_weeks"]), use_container_width=True,
                  config={"displayModeBar": False})
 ui.finding(
-    f"Así quedan divididas las {n_weeks} semanas: {n_weeks - model_config['test_weeks']} para entrenar, "
-    f"las últimas {model_config['test_weeks']} para comprobar honestamente si el modelo acierta — nunca al revés."
+    f"Así dividí las {n_weeks} semanas: {n_weeks - model_config['test_weeks']} para entrenar y "
+    f"las últimas {model_config['test_weeks']} para comprobar honestamente si el modelo acertaba, nunca al revés."
 )
 ui.section_close()
 
@@ -275,7 +275,7 @@ ui.eyebrow("¿Cómo intenta resolverlo?")
 ui.h2("SARIMA vs SARIMAX")
 ui.lead(
     "El SARIMA baseline solo ve el histórico de ventas. El SARIMAX ve lo mismo, "
-    "más las 5 señales externas. La pregunta que responde esta sección es simple: "
+    "más las 5 señales externas. La pregunta que quería responder en esta sección es simple: "
     "¿de verdad importa saber que hubo una huelga?"
 )
 
@@ -307,7 +307,8 @@ mape_improvement = metrics["improvement_pct"]["mape"]
 ui.finding(
     f"Añadir las 5 variables exógenas reduce el error un {ui.stat(f'{mape_improvement:.0f}%', 'pos')} "
     f"en las tres métricas a la vez (MAE, MAPE y RMSE). La serie histórica sola no basta cuando hay "
-    "eventos que mueven las cifras — el SARIMAX no solo predice mejor, sabe *por qué* se equivoca menos."
+    "eventos que mueven las cifras. Descubrí que el SARIMAX no solo predice mejor: también explica "
+    "*por qué* se equivoca menos."
 )
 ui.section_close()
 
@@ -357,7 +358,7 @@ ui.section_open("playground")
 ui.eyebrow("Pruébalo tú mismo")
 ui.h2("Playground — simula un escenario")
 ui.lead(
-    "Mueve las variables como si fueras a planificar las próximas semanas: ¿qué pasa si lanzamos "
+    "Mueve las variables como si fueras a planificar las próximas semanas: ¿qué pasa si lanzas "
     "una promoción agresiva? ¿Y si coincide con una huelga? El modelo genera la predicción en vivo."
 )
 
@@ -468,16 +469,17 @@ ui.finding(
 
 ui.h3("Backtesting temporal")
 ui.body(
-    "Un único split train/test puede salir favorable por casualidad. El backtesting repite el "
-    "experimento en múltiples ventanas del pasado: entrena hasta la semana T, predice las 4 "
-    "siguientes, avanza y repite."
+    "Un único split train/test puede salir favorable por casualidad, así que repetí el experimento "
+    "en múltiples ventanas del pasado: entrené hasta la semana T, predije las 4 siguientes, avancé "
+    "y repetí."
 )
 st.plotly_chart(charts.backtest_mape(backtest_df), use_container_width=True, config={"displayModeBar": False})
 mean_mape_bt = backtest_df["MAPE"].mean()
 quality = "excelente" if mean_mape_bt < 5 else ("buena" if mean_mape_bt < 10 else "aceptable")
 ui.finding(
     f"MAPE medio del backtesting: <b>{mean_mape_bt:.2f}%</b> — calidad {quality}, estable a lo largo "
-    f"de {len(backtest_df)} ventanas distintas. El modelo generaliza, no depende de un periodo de test favorable.",
+    f"de {len(backtest_df)} ventanas distintas. Comprobé que el modelo generaliza: no depende de un "
+    "periodo de test favorable.",
 )
 
 with st.expander("Diagnóstico de residuos — ¿el modelo dejó información sin capturar?"):
@@ -542,7 +544,7 @@ ui.section_close()
 
 # ============================================================ DECISIONES ==
 ui.section_open("decisiones")
-ui.eyebrow("¿Qué haríamos con esto?")
+ui.eyebrow("¿Qué haría con esto?")
 ui.h2("Decisiones que habilita")
 ui.decision_flow("El histórico solo no basta para prever inventario",
                   "Ajustar pedidos según el escenario más probable, no solo la media histórica",
@@ -590,10 +592,10 @@ with lc2:
     )
 st.markdown(
     '<div class="limit-note"><p class="co-body">'
-    "Para mejorar el modelo ayudaría: granularidad diaria o por tienda, variables macro adicionales "
+    "Para mejorar el modelo, incorporaría granularidad diaria o por tienda, variables macro adicionales "
     "(precio de la competencia, clima real en vez de proxy), y más historial para separar el efecto de "
-    "cada tipo de evento con mayor confianza estadística — hoy strike, war y other_incident tienen pocas "
-    "observaciones (entre 4 y 6 semanas cada uno)."
+    "cada tipo de evento con mayor confianza estadística: hoy huelga, guerra y otra incidencia tienen "
+    "pocas observaciones (entre 4 y 6 semanas cada una)."
     "</p></div>",
     unsafe_allow_html=True,
 )
@@ -606,7 +608,7 @@ ui.h2("Conclusión")
 ui.lead(
     f"Incorporar contexto externo mejora la previsión un {metrics['improvement_pct']['mape']:.0f}% frente al "
     "histórico puro, y convierte el modelo en un simulador de escenarios. El modelo no sustituye la "
-    "decisión de negocio — la toma con mejor información."
+    "decisión de negocio: la apoya con mejor información."
 )
 ui.section_close()
 
