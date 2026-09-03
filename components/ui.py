@@ -164,13 +164,18 @@ def story_steps(steps):
 
 
 def question_block(eyebrow_text: str, question_html: str, sub: str = ""):
+    """Composición de dos columnas: la pregunta (protagonista) a la
+    izquierda, la explicación (apoyo) a la derecha, separadas por una
+    regla vertical funcional. Sin `sub`, la pregunta ocupa las dos."""
+    right = f'<p class="question-sub">{sub}</p>' if sub else ""
+    grid_cls = "question-grid has-sub" if sub else "question-grid"
     st.markdown(
         f"""
         <div class="question-block">
-          <div class="question-inner">
-            <p class="question-eyebrow">{eyebrow_text}</p>
+          <p class="question-eyebrow">{eyebrow_text}</p>
+          <div class="{grid_cls}">
             <p class="question-text">{question_html}</p>
-            {f'<p class="question-sub">{sub}</p>' if sub else ''}
+            {right}
           </div>
         </div>
         """,
