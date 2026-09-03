@@ -280,10 +280,19 @@ a.hero-scroll:hover{ color: var(--ink); }
   .decision-flow .df-arrow{ transform: rotate(90deg); padding:.2rem 0;}
 }
 
-/* Limitations */
-.limit-col-title{ font-size:.75rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; margin-bottom:.7rem; color: var(--label); }
-ul.limit-list{ margin:0; padding-left: 1.1rem; }
-ul.limit-list li{ font-size:.87rem; color:var(--text); line-height:1.6; margin-bottom:.45rem; }
+/* Limitations — ritmo vertical generoso: cada bullet es una idea
+   independiente y necesita su propio espacio para leerse como tal,
+   no como un bloque de texto compacto. */
+.limit-col-title{
+  font-size:.75rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+  margin-bottom:1.3rem; padding-bottom:.7rem; color: var(--label);
+  border-bottom: 1px solid var(--line);
+}
+ul.limit-list{ margin:0; padding-left: 1.2rem; }
+ul.limit-list li{ font-size:.9rem; color:var(--text); line-height:1.65; margin-bottom:1rem; }
+ul.limit-list li::marker{ color: var(--muted); }
+ul.limit-list li:last-child{ margin-bottom:0; }
+.limit-note{ margin-top:2.2rem; padding-top:1.8rem; border-top:1px solid var(--line); }
 
 /* ---------- Footer minimalista ---------- */
 .co-footer-mini{

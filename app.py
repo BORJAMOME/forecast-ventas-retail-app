@@ -564,9 +564,10 @@ ui.section_close()
 ui.section_open("limitaciones")
 ui.eyebrow("Honestidad ante todo")
 ui.h2("Limitaciones")
-lc1, lc2 = st.columns(2)
+st.write("")
+lc1, lc2 = st.columns(2, gap="large")
 with lc1:
-    st.markdown('<p class="limit-col-title can">Lo que el modelo SÍ puede hacer</p>', unsafe_allow_html=True)
+    st.markdown('<p class="limit-col-title">Lo que el modelo SÍ puede hacer</p>', unsafe_allow_html=True)
     st.markdown(
         """<ul class="limit-list">
         <li>Predecir ventas semanales agregadas con un error medio por debajo del 6%.</li>
@@ -577,7 +578,7 @@ with lc1:
         unsafe_allow_html=True,
     )
 with lc2:
-    st.markdown('<p class="limit-col-title cannot">Lo que el modelo NO puede hacer</p>', unsafe_allow_html=True)
+    st.markdown('<p class="limit-col-title">Lo que el modelo NO puede hacer</p>', unsafe_allow_html=True)
     st.markdown(
         """<ul class="limit-list">
         <li>Predecir eventos nuevos que no existen en el histórico (asume que ocurren, no cuándo).</li>
@@ -587,11 +588,14 @@ with lc2:
         </ul>""",
         unsafe_allow_html=True,
     )
-ui.body(
+st.markdown(
+    '<div class="limit-note"><p class="co-body">'
     "Para mejorar el modelo ayudaría: granularidad diaria o por tienda, variables macro adicionales "
     "(precio de la competencia, clima real en vez de proxy), y más historial para separar el efecto de "
     "cada tipo de evento con mayor confianza estadística — hoy strike, war y other_incident tienen pocas "
     "observaciones (entre 4 y 6 semanas cada uno)."
+    "</p></div>",
+    unsafe_allow_html=True,
 )
 ui.section_close()
 
