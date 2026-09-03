@@ -231,17 +231,35 @@ a.hero-scroll:hover{ color: var(--ink); }
 }
 .badge.outline{ background: transparent; border:1px solid var(--line); color: var(--muted); }
 
-/* Impact statement (banner oscuro — pausa narrativa, no decoración) */
+/* Impact statement — misma lógica que la tarjeta de la pregunta de
+   negocio: la afirmación (protagonista) a un lado, la cita (apoyo) al
+   otro, separadas por una regla funcional, en vez de centrar todo el
+   bloque en un ancho fijo y dejar huecos muertos a los lados. */
 .impact-banner{
-  background: var(--ink); border-radius: 14px; padding: 3rem 2rem; text-align:center; margin: 1rem 0;
+  background: var(--ink); border-radius: 14px; padding: 2.6rem 3.4rem; margin: 1rem 0;
 }
+.impact-grid{
+  display: grid; grid-template-columns: 1fr; gap: 3.2rem; align-items: center;
+}
+.impact-grid.has-quote{ grid-template-columns: 3fr 2fr; }
 .impact-text{
-  font-family: var(--serif); font-weight:700; color:#fff; line-height:1.24;
-  font-size: clamp(1.5rem, 3.8vw, 2.5rem); max-width: 860px; margin:0 auto;
+  font-family: var(--serif); font-weight:700; color:#fff; line-height:1.26;
+  font-size: clamp(1.4rem, 2.6vw, 2rem); margin:0;
 }
 .impact-text .accent-neg{ color:#E0917F; }
 .impact-text .accent-pos{ color:#A9BA97; }
-.impact-quote{ color:#AEB9C9; font-style: italic; font-size: .98rem; margin-top:1.2rem; max-width:600px; margin-left:auto; margin-right:auto;}
+.impact-quote{
+  color:#AEB9C9; font-style: italic; font-size: .95rem; line-height:1.65; margin:0;
+  padding-left: 3.2rem; border-left: 1px solid rgba(255,255,255,.16);
+}
+@media (max-width: 860px){
+  .impact-banner{ padding: 2rem 1.8rem; }
+  .impact-grid, .impact-grid.has-quote{ grid-template-columns: 1fr; gap: 1.4rem; }
+  .impact-quote{
+    padding-left: 0; padding-top: 1.4rem;
+    border-left: none; border-top: 1px solid rgba(255,255,255,.16);
+  }
+}
 
 /* Insight numbered list */
 .insight-card{ display:flex; gap:1.2rem; padding: 1.2rem 0; border-top: 1px solid var(--line); }

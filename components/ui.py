@@ -184,11 +184,17 @@ def question_block(eyebrow_text: str, question_html: str, sub: str = ""):
 
 
 def impact_banner(text_html: str, quote: str = ""):
+    """Misma composición de dos columnas que question_block(): la
+    afirmación (protagonista) a un lado, la cita (apoyo) al otro."""
+    right = f'<p class="impact-quote">{quote}</p>' if quote else ""
+    grid_cls = "impact-grid has-quote" if quote else "impact-grid"
     st.markdown(
         f"""
         <div class="impact-banner">
-          <p class="impact-text">{text_html}</p>
-          {f'<p class="impact-quote">{quote}</p>' if quote else ''}
+          <div class="{grid_cls}">
+            <p class="impact-text">{text_html}</p>
+            {right}
+          </div>
         </div>
         """,
         unsafe_allow_html=True,
