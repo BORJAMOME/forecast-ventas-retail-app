@@ -1,10 +1,16 @@
-"""Figuras Plotly reutilizadas en toda la narrativa. El color se reserva
-para lo semántico: rojo = evento adverso (afecta a las ventas negativamente),
-verde = promoción (efecto positivo). El resto de elementos —líneas,
-barras estructurales— usan la gama de azules marino. Los cuatro tipos de
-evento adverso comparten el mismo rojo y se distinguen por la FORMA del
-marcador, no por el color: no son categorías con significado propio, son
-la misma cosa (un evento que perjudica las ventas) contada cuatro veces."""
+"""Figuras Plotly reutilizadas en toda la narrativa. Sistema de color
+consistente en toda la app:
+  - Serie principal        → azul marino oscuro (INK / NAVY2)
+  - Serie secundaria       → azul marino medio (NAVY3), misma familia
+  - Escenario / simulación / test → color de apoyo (SUPPORT, ámbar),
+    deliberadamente fuera de la familia azul para que se lea de un
+    vistazo como "esto no es el dato real, es una proyección"
+  - Resultado positivo     → verde (POSITIVE)
+  - Resultado negativo/riesgo → rojo (NEGATIVE)
+Los cuatro tipos de evento adverso comparten el mismo rojo y se
+distinguen por la FORMA del marcador, no por el color: no son
+categorías con significado propio, son la misma cosa (un evento que
+perjudica las ventas) contada cuatro veces."""
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
@@ -19,6 +25,8 @@ POSITIVE = "#6E7F5B"
 POSITIVE_SOFT = "rgba(110,127,91,0.14)"
 NEGATIVE = "#C2412E"
 NEGATIVE_SOFT = "rgba(194,65,46,0.12)"
+SUPPORT = "#B8783C"
+SUPPORT_SOFT = "rgba(184,120,60,0.14)"
 NAVY_SOFT = "rgba(39,58,95,0.10)"
 FONT = "Arial, Helvetica, sans-serif"
 
@@ -97,7 +105,7 @@ def train_test_split(df: pd.DataFrame, test_weeks: int) -> go.Figure:
     test = df.iloc[-test_weeks:]
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=train["date"], y=train["sales"], name="Train", line=dict(color=NAVY2, width=1.8)))
-    fig.add_trace(go.Scatter(x=test["date"], y=test["sales"], name="Test", line=dict(color=NAVY3, width=2)))
+    fig.add_trace(go.Scatter(x=test["date"], y=test["sales"], name="Test", line=dict(color=SUPPORT, width=2.4)))
     fig.add_vline(x=test["date"].iloc[0], line_dash="dash", line_color=MUTED)
     fig.update_yaxes(title_text="Ventas (€)")
     return _base_layout(fig, height=360)
@@ -159,11 +167,11 @@ def playground_forecast(history: pd.DataFrame, scenario: pd.DataFrame, tail_week
     bridge_x = [hist_tail["date"].iloc[-1]] + list(scenario["date"])
     bridge_y = [hist_tail["sales"].iloc[-1]] + list(scenario["forecast"])
     fig.add_trace(go.Scatter(x=bridge_x, y=bridge_y, name="Predicción (tu escenario)",
-                              line=dict(color=NAVY2, width=2.4, dash="dash"), mode="lines+markers"))
+                              line=dict(color=SUPPORT, width=2.6, dash="dash"), mode="lines+markers"))
     band_x = [hist_tail["date"].iloc[-1]] + list(scenario["date"]) + list(scenario["date"][::-1]) + [hist_tail["date"].iloc[-1]]
     band_y = ([hist_tail["sales"].iloc[-1]] + list(scenario["upper95"]) +
               list(scenario["lower95"][::-1]) + [hist_tail["sales"].iloc[-1]])
-    fig.add_trace(go.Scatter(x=band_x, y=band_y, fill="toself", fillcolor=NAVY_SOFT,
+    fig.add_trace(go.Scatter(x=band_x, y=band_y, fill="toself", fillcolor=SUPPORT_SOFT,
                               line=dict(color="rgba(0,0,0,0)"), showlegend=False, hoverinfo="skip"))
     fig.update_yaxes(title_text="Ventas (€)")
     return _base_layout(fig, height=420)

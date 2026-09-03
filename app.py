@@ -86,32 +86,30 @@ ui.nav()
 ui.install_smooth_scroll()
 
 # ============================================================ HERO ==
-st.markdown('<div id="top" class="hero-wrap">', unsafe_allow_html=True)
-st.markdown('<p class="hero-kicker">Machine Learning Case Study · Series Temporales</p>', unsafe_allow_html=True)
-st.markdown(
-    '<h1 class="hero-title">¿Cuánto le cuesta a un negocio retail '
-    '<em>no ver venir</em> una huelga, una guerra o una promoción?</h1>',
-    unsafe_allow_html=True,
-)
-st.markdown(
-    '<p class="hero-sub">Un modelo de series temporales aplicado a la previsión semanal de ventas '
-    'de una cadena retail, comparando qué ocurre cuando el modelo solo mira el histórico frente a '
-    'cuando también sabe qué está pasando en el mundo.</p>',
-    unsafe_allow_html=True,
-)
+# Todo el hero va en UNA sola llamada a st.markdown: cada llamada por
+# separado crea su propio contenedor en el DOM, así que abrir <div class
+# ="hero-wrap"> en una y cerrarlo en otra produce un div vacío (0 hijos)
+# en vez de envolver el contenido — eso fue lo que generaba la línea
+# suelta encima del eyebrow (el border-bottom de ese div fantasma).
 st.markdown(
     f"""
-    <div class="hero-meta">
-      <span class="hero-pill">Borja Mora Méndez</span>
-      <span class="hero-pill">Python · statsmodels (SARIMAX)</span>
-      <span class="hero-pill">Streamlit</span>
-      <span class="hero-pill">{n_weeks} semanas de histórico</span>
+    <div id="top" class="hero-wrap">
+      <p class="hero-kicker">Machine Learning Case Study · Series Temporales</p>
+      <h1 class="hero-title">¿Cuánto le cuesta a un negocio retail <em>no ver venir</em> una huelga, una guerra o una promoción?</h1>
+      <p class="hero-sub">Un modelo de series temporales aplicado a la previsión semanal de ventas de una cadena retail, comparando qué ocurre cuando el modelo solo mira el histórico frente a cuando también sabe qué está pasando en el mundo.</p>
+      <div class="hero-meta">
+        <span class="hero-pill">Borja Mora Méndez</span>
+        <span class="hero-pill">Python · statsmodels (SARIMAX)</span>
+        <span class="hero-pill">Streamlit</span>
+        <span class="hero-pill">{n_weeks} semanas de histórico</span>
+      </div>
+      <div class="hero-scroll-row">
+        <a href="#contexto" class="hero-scroll">explorar el caso &#8595;</a>
+      </div>
     </div>
-    <a href="#contexto" class="hero-scroll">explorar el caso &#8595;</a>
     """,
     unsafe_allow_html=True,
 )
-st.markdown("</div>", unsafe_allow_html=True)
 
 # ============================================================ CONTEXTO ==
 ui.section_open("contexto")

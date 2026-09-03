@@ -167,9 +167,11 @@ def question_block(eyebrow_text: str, question_html: str, sub: str = ""):
     st.markdown(
         f"""
         <div class="question-block">
-          <p class="question-eyebrow">{eyebrow_text}</p>
-          <p class="question-text">{question_html}</p>
-          {f'<p class="question-sub">{sub}</p>' if sub else ''}
+          <div class="question-inner">
+            <p class="question-eyebrow">{eyebrow_text}</p>
+            <p class="question-text">{question_html}</p>
+            {f'<p class="question-sub">{sub}</p>' if sub else ''}
+          </div>
         </div>
         """,
         unsafe_allow_html=True,
