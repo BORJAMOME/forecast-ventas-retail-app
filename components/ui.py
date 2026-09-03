@@ -16,12 +16,15 @@ _NAV_ITEMS = [
 ]
 
 
-def nav():
+def nav(portfolio_url: str = "https://borjamora.es/"):
     links = "".join(f'<a href="#{anchor}">{label}</a>' for anchor, label in _NAV_ITEMS)
     st.markdown(
         f"""
         <div class="co-nav">
-          <span class="co-nav-brand">Previsión de Ventas · Retail</span>
+          <div class="co-nav-left">
+            <a class="co-nav-back" href="{portfolio_url}" target="_blank" rel="noopener">&#8592; Portfolio</a>
+            <span class="co-nav-brand">Previsión de Ventas · Retail</span>
+          </div>
           <div class="co-nav-links">{links}</div>
         </div>
         """,
@@ -239,16 +242,19 @@ def decision_flow(insight: str, action: str, objective: str, metric: str):
     )
 
 
-def footer_minimal(name: str, repo_url: str, linkedin_url: str, email: str):
+def footer_minimal(name: str, repo_url: str, linkedin_url: str, email: str,
+                    portfolio_url: str = "https://borjamora.es/"):
     """Footer minimalista integrado con el fondo de la página: nombre a la
-    izquierda, CTA centrado, enlaces discretos a la derecha. Sin tarjeta
-    oscura — no debe competir visualmente con el cierre del proyecto."""
+    izquierda, CTA centrado, enlaces discretos a la derecha (portfolio
+    primero — es la salida más probable al terminar de leer el caso).
+    Sin tarjeta oscura — no debe competir visualmente con el cierre."""
     st.markdown(
         f"""
         <div class="co-footer-mini">
           <span class="ff-name">{name}</span>
           <a class="ff-cta" href="{repo_url}" target="_blank">Repositorio del proyecto</a>
           <div class="ff-links">
+            <a href="{portfolio_url}" target="_blank" rel="noopener">Portfolio</a>
             <a href="{linkedin_url}" target="_blank">LinkedIn</a>
             <a href="mailto:{email}">Contacto</a>
           </div>
