@@ -171,16 +171,15 @@ for c, col in zip(cols, EXOG_COLS):
         pct = counts[col] / n_weeks * 100
         st.markdown(
             f'<div class="co-card" style="text-align:center; padding:1.2rem .8rem;">'
-            f'<div class="kpi-num" style="font-size:1.6rem; color:{meta["color"]};">{counts[col]}</div>'
+            f'<div class="kpi-num" style="font-size:1.6rem;">{counts[col]}</div>'
             f'<div class="kpi-label">{meta["label"]}<br>{pct:.1f}% de las semanas</div></div>',
             unsafe_allow_html=True,
         )
 st.write("")
 ui.finding(
-    f"En el histórico no hay ninguna semana con más de un evento simultáneo — "
-    f"cada incidente aparece aislado. Por eso el <b>Playground</b> más abajo permite combinarlos: "
-    f"así se simula lo que el histórico nunca mostró.",
-    tone="neutral",
+    "En el histórico no hay ninguna semana con más de un evento simultáneo — "
+    "cada incidente aparece aislado. Por eso el <b>Playground</b> más abajo permite combinarlos: "
+    "así se simula lo que el histórico nunca mostró."
 )
 ui.section_close()
 
@@ -209,43 +208,44 @@ st.plotly_chart(charts.sales_with_events(df), use_container_width=True, config={
 ui.finding(
     "Las caídas más pronunciadas de la serie coinciden visualmente con huelgas y problemas logísticos, "
     "y los picos más altos suelen coincidir con promociones. Es una pista, no una prueba — "
-    "para cuantificarla hace falta un modelo.",
-    tone="amber",
+    "para cuantificarla hace falta un modelo."
 )
 
 ui.h3("¿Las promociones venden más?")
 st.plotly_chart(charts.promotion_boxplot(df), use_container_width=True, config={"displayModeBar": False})
 diff_pct = (df.loc[df["promotion"] > 0, "sales"].mean() / df.loc[df["promotion"] == 0, "sales"].mean() - 1) * 100
 ui.finding(
-    f"Las semanas con promoción activa venden de media un <b>{diff_pct:.1f}% más</b> que las semanas sin ella. "
-    "Es una diferencia visible incluso antes de modelar — buena señal de que la variable va a aportar.",
-    tone="green",
+    f"Las semanas con promoción activa venden de media un {ui.stat(f'{diff_pct:.1f}% más', 'pos')} que las "
+    "semanas sin ella. Es una diferencia visible incluso antes de modelar — buena señal de que la variable "
+    "va a aportar."
 )
 ui.section_close()
 
 # ============================================================ METODOLOGÍA ==
 ui.section_open("metodologia")
 ui.eyebrow("Cómo se llegó al modelo")
-ui.h2("Metodología")
-ui.lead("Series temporales tiene reglas propias: no se puede barajar el tiempo. "
-        "Este es el camino, paso a paso, desde los datos crudos hasta la simulación de escenarios.")
-ui.method_cards([
-    ("1", "EDA de la serie: tendencia, estacionalidad e impacto visual de eventos"),
-    ("2", "Test de estacionariedad (ADF) sobre la serie original y transformada"),
-    ("3", "ACF / PACF para identificar los órdenes del modelo"),
-    ("4", "SARIMA baseline — solo histórico"),
-    ("5", "SARIMAX — histórico + 5 variables exógenas"),
-])
-st.write("")
-ui.method_cards([
-    ("6", "Evaluación con MAE, MAPE y RMSE sobre un hold-out temporal"),
-    ("7", "Diagnóstico de residuos: Ljung-Box y Shapiro-Wilk"),
-    ("8", "Backtesting con ventanas deslizantes"),
-    ("9", "Reentrenamiento final con todo el histórico"),
-    ("10", "Simulación de escenarios individuales y combinados"),
+ui.h2("El camino hasta el modelo")
+ui.lead(
+    "En series temporales no se puede barajar el tiempo: hay que respetar el orden en que "
+    "ocurrieron las cosas. Así fue el recorrido, paso a paso."
+)
+ui.story_steps([
+    ("Miramos los datos",
+     "Analizamos tres años de ventas para entender el patrón de fondo antes de tocar ningún "
+     "modelo: estacionalidad, tendencia, ruido."),
+    ("Probamos con solo el pasado",
+     "Entrenamos un primer modelo — SARIMA — que únicamente mira el histórico de ventas. Es el "
+     "punto de partida honesto: si lo que viene después no lo mejora, el contexto no vale nada."),
+    ("Añadimos el contexto",
+     "Incorporamos huelgas, guerra, logística y promociones a ese mismo modelo (SARIMAX) para "
+     "comprobar si esa información realmente cambiaba algo."),
+    (f"Validamos sin hacer trampas",
+     f"Reservamos las últimas {model_config['test_weeks']} semanas para comprobar cada modelo con datos que "
+     "nunca había visto, y repetimos el experimento en 13 ventanas distintas del pasado para no "
+     "fiarnos de un golpe de suerte."),
 ])
 
-with st.expander("Detalle técnico — estacionariedad, ACF/PACF y transformación log"):
+with st.expander("Para quien quiera el detalle técnico — estacionariedad, ACF/PACF, órdenes del modelo"):
     st.markdown(
         "Los modelos ARIMA necesitan una serie **estacionaria** (media y varianza constantes). "
         "Se aplicó el test de Dickey-Fuller aumentado (ADF) sobre la serie original y transformada:"
@@ -263,13 +263,12 @@ with st.expander("Detalle técnico — estacionariedad, ACF/PACF y transformaci�
     )
 
 st.write("")
-ui.h3("Separación temporal train / test")
-ui.body(
-    f"En series temporales el test siempre es el periodo más reciente — nunca aleatorio — porque "
-    f"simulamos no conocer el futuro. Se reservaron las últimas {model_config['test_weeks']} semanas como test."
-)
 st.plotly_chart(charts.train_test_split(df, model_config["test_weeks"]), use_container_width=True,
                  config={"displayModeBar": False})
+ui.finding(
+    f"Así quedan divididas las {n_weeks} semanas: {n_weeks - model_config['test_weeks']} para entrenar, "
+    f"las últimas {model_config['test_weeks']} para comprobar honestamente si el modelo acierta — nunca al revés."
+)
 ui.section_close()
 
 # ============================================================ MODELO ==
@@ -306,11 +305,11 @@ with st.expander("¿Qué significan MAE, MAPE y RMSE?"):
 st.write("")
 ui.h3("Predicción vs realidad — últimas semanas de test")
 st.plotly_chart(charts.model_comparison(forecast_df), use_container_width=True, config={"displayModeBar": False})
+mape_improvement = metrics["improvement_pct"]["mape"]
 ui.finding(
-    f"Añadir las 5 variables exógenas reduce el error un <b>{metrics['improvement_pct']['mape']:.0f}%</b> "
+    f"Añadir las 5 variables exógenas reduce el error un {ui.stat(f'{mape_improvement:.0f}%', 'pos')} "
     f"en las tres métricas a la vez (MAE, MAPE y RMSE). La serie histórica sola no basta cuando hay "
-    "eventos que mueven las cifras — el SARIMAX no solo predice mejor, sabe *por qué* se equivoca menos.",
-    tone="green",
+    "eventos que mueven las cifras — el SARIMAX no solo predice mejor, sabe *por qué* se equivoca menos."
 )
 ui.section_close()
 
@@ -330,14 +329,14 @@ labels = {"promotion": "Promoción", "strike": "Huelga", "war": "Guerra",
 cols_c = st.columns(len(coefficients_display))
 for c, coef in zip(cols_c, sorted(coefficients_display, key=lambda x: -abs(x["pct_impact"]))):
     with c:
-        tone = "green" if coef["pct_impact"] > 0 else "red"
+        tone = "pos" if coef["pct_impact"] > 0 else "neg"
         sig = "significativo" if coef["significant"] else "no significativo"
         unit = f"al {PROMO_MAX*100:.0f}% desc." if coef["variable"] == "promotion" else "mientras dura"
+        pct_txt = ui.stat(f'{coef["pct_impact"]:+.2f}% en ventas', tone)
         ui.finding(
             f'<b>{labels.get(coef["variable"], coef["variable"])}</b><br>'
-            f'{coef["pct_impact"]:+.2f}% en ventas <span style="font-size:.7rem; opacity:.7;">({unit})</span><br>'
-            f'<span style="font-size:.75rem; opacity:.75;">p={coef["p_value"]:.3f} · {sig}</span>',
-            tone=tone,
+            f'{pct_txt} <span style="font-size:.7rem; opacity:.7;">({unit})</span><br>'
+            f'<span style="font-size:.75rem; opacity:.75;">p={coef["p_value"]:.3f} · {sig}</span>'
         )
 promo_beta = coef_map["promotion"]["beta"]
 promo_per_pp = pct_impact_for(promo_beta, 0.01)
@@ -345,10 +344,9 @@ promo_at_max = pct_impact_for(promo_beta, PROMO_MAX)
 ui.finding(
     f"La promoción es continua (0–{PROMO_MAX*100:.0f}% de descuento en el histórico), así que su coeficiente "
     f"se lee <b>por punto porcentual</b>: +{promo_per_pp:.2f}% de ventas por cada 1pp adicional de descuento. "
-    f"Al nivel máximo histórico ({PROMO_MAX*100:.0f}%), eso equivale a un <b>{promo_at_max:+.1f}%</b> en ventas "
-    f"— no al {coef_map['promotion']['pct_impact']:.0f}% que saldría de leer el coeficiente como si el "
-    "descuento pudiera llegar al 100%.",
-    tone="neutral",
+    f"Al nivel máximo histórico ({PROMO_MAX*100:.0f}%), eso equivale a un {ui.stat(f'{promo_at_max:+.1f}%', 'pos')} "
+    f"en ventas — no al {coef_map['promotion']['pct_impact']:.0f}% que saldría de leer el coeficiente como si "
+    "el descuento pudiera llegar al 100%."
 )
 ui.body(
     "Importante: son efectos estimados *ceteris paribus* (aislando cada variable) y asumen que el "
@@ -427,16 +425,15 @@ if active:
         sign = "+" if impact > 0 else ""
         drivers.append(f"{sign}{impact:.1f}% por {labels.get(var, var).lower()}")
     driver_text = " · ".join(drivers)
-    tone = "green" if delta_pct > 0 else ("red" if delta_pct < 0 else "neutral")
+    tone = "pos" if delta_pct > 0 else ("neg" if delta_pct < 0 else "")
+    delta_txt = ui.stat(f"{delta_pct:+.1f}%", tone)
     ui.finding(
         f"Respecto al escenario base, tu combinación de eventos mueve la predicción un "
-        f"<b>{delta_pct:+.1f}%</b> ({eur(scenario_total - base_total, sign=True)}). "
-        f"Los factores en juego: {driver_text}.",
-        tone=tone,
+        f"{delta_txt} ({eur(scenario_total - base_total, sign=True)}). "
+        f"Los factores en juego: {driver_text}."
     )
 else:
-    ui.finding("Activa alguna variable arriba para ver cómo cambia la predicción respecto al escenario base.",
-               tone="neutral")
+    ui.finding("Activa alguna variable arriba para ver cómo cambia la predicción respecto al escenario base.")
 ui.section_close()
 
 # ============================================================ RESULTADOS ==
@@ -464,12 +461,11 @@ for c, (label, key, unit) in zip(perf_cols, perf_rows):
         )
 
 st.write("")
+sarimax_mape = metrics["sarimax"]["mape"]
 ui.finding(
-    f"<b>¿Qué significa?</b> Con SARIMAX, el error porcentual medio baja a "
-    f"<b>{metrics['sarimax']['mape']:.2f}%</b> — dentro del rango \"bueno\" para forecasting de retail "
-    "(por debajo del 10%). En la práctica: de cada 100 € previstos, el modelo se desvía en "
-    f"menos de {metrics['sarimax']['mape']:.0f} €.",
-    tone="green",
+    f"<b>¿Qué significa?</b> Con SARIMAX, el error porcentual medio baja a {ui.stat(f'{sarimax_mape:.2f}%', 'pos')} "
+    "— dentro del rango \"bueno\" para forecasting de retail (por debajo del 10%). En la práctica: de cada "
+    f"100 € previstos, el modelo se desvía en menos de {sarimax_mape:.0f} €."
 )
 
 ui.h3("Backtesting temporal")
@@ -504,8 +500,8 @@ ui.section_close()
 # ============================================================ IMPACTO ==
 ui.section_open("impacto", tight=True)
 ui.impact_banner(
-    f'Ignorar el contexto cuesta un <span class="accent-red">{metrics["improvement_pct"]["mape"]:.0f}% más de error.</span> '
-    f'Incluirlo lo convierte en un <span class="accent-green">simulador de decisiones.</span>',
+    f'Ignorar el contexto cuesta un <span class="accent-neg">{metrics["improvement_pct"]["mape"]:.0f}% más de error.</span> '
+    f'Incluirlo lo convierte en un <span class="accent-pos">simulador de decisiones.</span>',
     quote='"El modelo ya no solo predice — permite preguntar qué pasaría antes de que pase."',
 )
 ui.section_close()
@@ -612,20 +608,9 @@ ui.lead(
 )
 ui.section_close()
 
-st.markdown(
-    """
-    <div class="co-footer">
-      <p class="cf-title">Borja Mora Méndez</p>
-      <p style="font-size:.85rem; max-width:520px; line-height:1.6;">
-        Data Analyst · Power BI Developer. Este case study forma parte de mi portfolio de
-        Machine Learning y Data Analytics.
-      </p>
-      <div style="display:flex; flex-wrap:wrap; gap:1.6rem; margin-top:1.4rem; font-size:.85rem;">
-        <a href="https://github.com/BORJAMOME/Data-Analytics-Portfolio" target="_blank">Repositorio del proyecto</a>
-        <a href="https://www.linkedin.com/in/borja-mora-mendez/" target="_blank">LinkedIn</a>
-        <a href="mailto:borja.mora.mendez@gmail.com">Contacto</a>
-      </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
+ui.footer_minimal(
+    name="Borja Mora Méndez",
+    repo_url="https://github.com/BORJAMOME/forecast-ventas-retail-app",
+    linkedin_url="https://www.linkedin.com/in/borja-mora-mendez/",
+    email="borja.mora.mendez@gmail.com",
 )

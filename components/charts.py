@@ -1,27 +1,32 @@
-"""Figuras Plotly reutilizadas en toda la narrativa. Paleta consistente
-con las figuras del notebook original (azul = histórico/predicción,
-rojo = riesgo, verde = promoción/positivo, ámbar = logística, morado = guerra)."""
+"""Figuras Plotly reutilizadas en toda la narrativa. El color se reserva
+para lo semántico: rojo = evento adverso (afecta a las ventas negativamente),
+verde = promoción (efecto positivo). El resto de elementos —líneas,
+barras estructurales— usan la gama de azules marino. Los cuatro tipos de
+evento adverso comparten el mismo rojo y se distinguen por la FORMA del
+marcador, no por el color: no son categorías con significado propio, son
+la misma cosa (un evento que perjudica las ventas) contada cuatro veces."""
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
-INK = "#12182B"
-MUTED = "#7C8896"
-LINE = "#E4E7EC"
-BLUE = "#2563EB"
-BLUE_SOFT = "rgba(37,99,235,0.12)"
-GREEN = "#15803D"
-RED = "#DC2626"
-AMBER = "#B45309"
-PURPLE = "#6D28D9"
-CYAN = "#0891B2"
-FONT = "-apple-system, Segoe UI, Arial, sans-serif"
+INK = "#1D2638"
+NAVY2 = "#273A5F"
+NAVY3 = "#4A628E"
+NAVY4 = "#B9C5D6"
+MUTED = "#6B7280"
+LINE = "#E3DFD5"
+POSITIVE = "#6E7F5B"
+POSITIVE_SOFT = "rgba(110,127,91,0.14)"
+NEGATIVE = "#C2412E"
+NEGATIVE_SOFT = "rgba(194,65,46,0.12)"
+NAVY_SOFT = "rgba(39,58,95,0.10)"
+FONT = "Arial, Helvetica, sans-serif"
 
 EVENT_STYLE = {
-    "strike": {"label": "Huelga", "color": RED, "symbol": "triangle-down"},
-    "war": {"label": "Guerra", "color": PURPLE, "symbol": "x"},
-    "logistics": {"label": "Problema logístico", "color": AMBER, "symbol": "square"},
-    "other_incident": {"label": "Otra incidencia", "color": CYAN, "symbol": "diamond"},
+    "strike": {"label": "Huelga", "color": NEGATIVE, "symbol": "triangle-down"},
+    "war": {"label": "Guerra", "color": NEGATIVE, "symbol": "x"},
+    "logistics": {"label": "Problema logístico", "color": NEGATIVE, "symbol": "square"},
+    "other_incident": {"label": "Otra incidencia", "color": NEGATIVE, "symbol": "diamond"},
 }
 
 
@@ -45,9 +50,9 @@ def _base_layout(fig, height=420, legend=True):
 def sales_evolution(df: pd.DataFrame) -> go.Figure:
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=df["date"], y=df["sales"], name="Ventas semanales",
-                              line=dict(color=BLUE, width=1.8), fill="tozeroy", fillcolor=BLUE_SOFT))
+                              line=dict(color=NAVY2, width=1.8), fill="tozeroy", fillcolor=NAVY_SOFT))
     fig.add_trace(go.Scatter(x=df["date"], y=df["ma_12"], name="Media móvil 12 semanas",
-                              line=dict(color=RED, width=2, dash="dash")))
+                              line=dict(color=NAVY3, width=2, dash="dash")))
     fig.update_yaxes(title_text="Ventas (€)", rangemode="tozero")
     return _base_layout(fig)
 
@@ -71,7 +76,7 @@ def sales_with_events(df: pd.DataFrame) -> go.Figure:
         fig.add_trace(go.Scatter(
             x=df.loc[promo_mask, "date"], y=df.loc[promo_mask, "sales"], mode="markers",
             name=f"Promoción ({int(promo_mask.sum())} sem.)",
-            marker=dict(color=GREEN, size=sizes, opacity=0.55, line=dict(color=INK, width=0.6)),
+            marker=dict(color=POSITIVE, size=sizes, opacity=0.55, line=dict(color=INK, width=0.6)),
         ))
     fig.update_yaxes(title_text="Ventas (€)")
     return _base_layout(fig, height=440)
@@ -82,7 +87,7 @@ def promotion_boxplot(df: pd.DataFrame) -> go.Figure:
     promo_no = df.loc[df["promotion"] == 0, "sales"]
     fig = go.Figure()
     fig.add_trace(go.Box(y=promo_no, name="Sin promoción", marker_color=MUTED, boxmean=True))
-    fig.add_trace(go.Box(y=promo_yes, name="Con promoción", marker_color=GREEN, boxmean=True))
+    fig.add_trace(go.Box(y=promo_yes, name="Con promoción", marker_color=POSITIVE, boxmean=True))
     fig.update_yaxes(title_text="Ventas (€)")
     return _base_layout(fig, height=360, legend=False)
 
@@ -91,8 +96,8 @@ def train_test_split(df: pd.DataFrame, test_weeks: int) -> go.Figure:
     train = df.iloc[:-test_weeks]
     test = df.iloc[-test_weeks:]
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=train["date"], y=train["sales"], name="Train", line=dict(color=BLUE, width=1.8)))
-    fig.add_trace(go.Scatter(x=test["date"], y=test["sales"], name="Test", line=dict(color=RED, width=2)))
+    fig.add_trace(go.Scatter(x=train["date"], y=train["sales"], name="Train", line=dict(color=NAVY2, width=1.8)))
+    fig.add_trace(go.Scatter(x=test["date"], y=test["sales"], name="Test", line=dict(color=NAVY3, width=2)))
     fig.add_vline(x=test["date"].iloc[0], line_dash="dash", line_color=MUTED)
     fig.update_yaxes(title_text="Ventas (€)")
     return _base_layout(fig, height=360)
@@ -103,15 +108,15 @@ def model_comparison(forecast_df: pd.DataFrame) -> go.Figure:
     fig.add_trace(go.Scatter(x=forecast_df["date"], y=forecast_df["actual"], name="Ventas reales",
                               line=dict(color=INK, width=2.4), mode="lines+markers"))
     fig.add_trace(go.Scatter(x=forecast_df["date"], y=forecast_df["sarima_forecast"], name="SARIMA (baseline)",
-                              line=dict(color=RED, width=2, dash="dash")))
+                              line=dict(color=NEGATIVE, width=2, dash="dash")))
     fig.add_trace(go.Scatter(
         x=pd.concat([forecast_df["date"], forecast_df["date"][::-1]]),
         y=pd.concat([forecast_df["sarimax_upper"], forecast_df["sarimax_lower"][::-1]]),
-        fill="toself", fillcolor="rgba(21,128,61,0.12)", line=dict(color="rgba(0,0,0,0)"),
+        fill="toself", fillcolor=POSITIVE_SOFT, line=dict(color="rgba(0,0,0,0)"),
         showlegend=False, hoverinfo="skip",
     ))
     fig.add_trace(go.Scatter(x=forecast_df["date"], y=forecast_df["sarimax_forecast"], name="SARIMAX (con eventos)",
-                              line=dict(color=GREEN, width=2.2, dash="dash")))
+                              line=dict(color=POSITIVE, width=2.2, dash="dash")))
     fig.update_yaxes(title_text="Ventas (€)")
     return _base_layout(fig, height=440)
 
@@ -119,7 +124,8 @@ def model_comparison(forecast_df: pd.DataFrame) -> go.Figure:
 def coefficient_impact(coeffs: list) -> go.Figure:
     labels = {"promotion": "Promoción (al 18% desc., máx. histórico)", "strike": "Huelga", "war": "Guerra",
               "logistics": "Problema logístico", "other_incident": "Otra incidencia"}
-    colors = {"promotion": GREEN, "strike": RED, "war": PURPLE, "logistics": AMBER, "other_incident": CYAN}
+    colors = {"promotion": POSITIVE, "strike": NEGATIVE, "war": NEGATIVE,
+              "logistics": NEGATIVE, "other_incident": NEGATIVE}
     items = sorted(coeffs, key=lambda c: c["pct_impact"])
     y = [labels.get(c["variable"], c["variable"]) for c in items]
     x = [c["pct_impact"] for c in items]
@@ -136,10 +142,10 @@ def coefficient_impact(coeffs: list) -> go.Figure:
 def backtest_mape(bt_df: pd.DataFrame) -> go.Figure:
     mean_mape = bt_df["MAPE"].mean()
     fig = go.Figure()
-    fig.add_trace(go.Bar(x=bt_df["iteration"], y=bt_df["MAPE"], marker_color=BLUE, opacity=0.85,
+    fig.add_trace(go.Bar(x=bt_df["iteration"], y=bt_df["MAPE"], marker_color=NAVY2, opacity=0.85,
                           name="MAPE por ventana"))
-    fig.add_hline(y=mean_mape, line_dash="dash", line_color=RED,
-                  annotation_text=f"Media {mean_mape:.2f}%", annotation_font_color=RED)
+    fig.add_hline(y=mean_mape, line_dash="dash", line_color=INK,
+                  annotation_text=f"Media {mean_mape:.2f}%", annotation_font_color=INK)
     fig.update_xaxes(title_text="Ventana de backtesting")
     fig.update_yaxes(title_text="MAPE (%)")
     return _base_layout(fig, height=340, legend=False)
@@ -153,11 +159,11 @@ def playground_forecast(history: pd.DataFrame, scenario: pd.DataFrame, tail_week
     bridge_x = [hist_tail["date"].iloc[-1]] + list(scenario["date"])
     bridge_y = [hist_tail["sales"].iloc[-1]] + list(scenario["forecast"])
     fig.add_trace(go.Scatter(x=bridge_x, y=bridge_y, name="Predicción (tu escenario)",
-                              line=dict(color=BLUE, width=2.4, dash="dash"), mode="lines+markers"))
+                              line=dict(color=NAVY2, width=2.4, dash="dash"), mode="lines+markers"))
     band_x = [hist_tail["date"].iloc[-1]] + list(scenario["date"]) + list(scenario["date"][::-1]) + [hist_tail["date"].iloc[-1]]
     band_y = ([hist_tail["sales"].iloc[-1]] + list(scenario["upper95"]) +
               list(scenario["lower95"][::-1]) + [hist_tail["sales"].iloc[-1]])
-    fig.add_trace(go.Scatter(x=band_x, y=band_y, fill="toself", fillcolor="rgba(37,99,235,0.12)",
+    fig.add_trace(go.Scatter(x=band_x, y=band_y, fill="toself", fillcolor=NAVY_SOFT,
                               line=dict(color="rgba(0,0,0,0)"), showlegend=False, hoverinfo="skip"))
     fig.update_yaxes(title_text="Ventas (€)")
     return _base_layout(fig, height=420)
@@ -172,9 +178,9 @@ def scenario_bars(rows: list) -> go.Figure:
         if r["is_base"]:
             colors.append(MUTED)
         elif r["total"] > base_val * 1.005:
-            colors.append(GREEN)
+            colors.append(POSITIVE)
         elif r["total"] < base_val * 0.995:
-            colors.append(RED)
+            colors.append(NEGATIVE)
         else:
             colors.append(MUTED)
     fig = go.Figure(go.Bar(

@@ -12,12 +12,13 @@ DATA_PATH = ROOT / "data" / "SALES_FORECASTING_VARIABLES_EXOGENAS.xlsx"
 ARTIFACTS = ROOT / "model" / "artifacts"
 
 EXOG_COLS = ["promotion", "strike", "war", "logistics", "other_incident"]
+# El color solo se usa donde hay significado semántico real (positivo/negativo).
 EVENT_META = {
-    "promotion": {"label": "Promoción", "color": "#15803D", "kind": "continuous"},
-    "strike": {"label": "Huelga", "color": "#DC2626", "kind": "binary"},
-    "war": {"label": "Guerra", "color": "#6D28D9", "kind": "binary"},
-    "logistics": {"label": "Problema logístico", "color": "#B45309", "kind": "binary"},
-    "other_incident": {"label": "Otra incidencia", "color": "#0891B2", "kind": "binary"},
+    "promotion": {"label": "Promoción", "color": "#6E7F5B", "kind": "continuous"},
+    "strike": {"label": "Huelga", "color": "#C2412E", "kind": "binary"},
+    "war": {"label": "Guerra", "color": "#C2412E", "kind": "binary"},
+    "logistics": {"label": "Problema logístico", "color": "#C2412E", "kind": "binary"},
+    "other_incident": {"label": "Otra incidencia", "color": "#C2412E", "kind": "binary"},
 }
 
 

@@ -4,8 +4,8 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 PALETTE = {
-    "blue": "#2563EB", "green": "#15803D", "red": "#DC2626",
-    "amber": "#B45309", "purple": "#6D28D9", "muted": "#7C8896",
+    "ink": "#1D2638", "navy2": "#273A5F", "navy3": "#4A628E", "navy4": "#B9C5D6",
+    "positive": "#6E7F5B", "negative": "#C2412E", "muted": "#6B7280",
 }
 
 
@@ -115,9 +115,20 @@ def kpi_grid(items, cols: int = 4):
 
 
 def finding(text: str, tone: str = ""):
-    """tone: '', 'green', 'red', 'amber', 'purple', 'neutral'"""
-    cls = f"finding {tone}".strip()
-    st.markdown(f'<div class="{cls}">{text}</div>', unsafe_allow_html=True)
+    """Callout de hallazgo: una sola apariencia visual (tarjeta plana
+    #F2F0EB, sin barra lateral). `tone` ya no cambia el fondo — el color
+    solo debe aparecer dentro del texto vía `stat()`, sobre la cifra que
+    tiene un significado semántico real."""
+    st.markdown(f'<div class="finding">{text}</div>', unsafe_allow_html=True)
+
+
+def stat(text: str, tone: str = "") -> str:
+    """Envuelve una cifra concreta en color semántico (pos/neg). Úsalo
+    solo sobre el número, nunca sobre el texto completo de un callout."""
+    cls = {"green": "pos", "pos": "pos", "red": "neg", "neg": "neg"}.get(tone, "")
+    if not cls:
+        return text
+    return f'<span class="stat {cls}">{text}</span>'
 
 
 def card_open(paper: bool = False):
@@ -139,16 +150,17 @@ def pipeline(steps):
     st.markdown("".join(html), unsafe_allow_html=True)
 
 
-def method_cards(steps):
-    """steps: list of (num, text)"""
-    cols = st.columns(len(steps))
-    for c, (num, text) in zip(cols, steps):
-        with c:
-            st.markdown(
-                f'<div class="method-card"><span class="method-num">{num}</span>'
-                f'<div class="method-text">{text}</div></div>',
-                unsafe_allow_html=True,
-            )
+def story_steps(steps):
+    """Metodología como recorrido narrativo, no como documentación técnica.
+    steps: list of (title, text) — se numeran solos."""
+    html = ['<div class="story-steps">']
+    for i, (title, text) in enumerate(steps, start=1):
+        html.append(
+            f'<div class="story-step"><span class="ss-num">{i:02d}</span>'
+            f'<span class="ss-title">{title}</span><span class="ss-text">{text}</span></div>'
+        )
+    html.append("</div>")
+    st.markdown("".join(html), unsafe_allow_html=True)
 
 
 def question_block(eyebrow_text: str, question_html: str, sub: str = ""):
@@ -208,6 +220,25 @@ def decision_flow(insight: str, action: str, objective: str, metric: str):
           <div class="df-box"><span class="df-k">Objetivo</span><span class="df-v">{objective}</span></div>
           <div class="df-arrow">&#8594;</div>
           <div class="df-box"><span class="df-k">Métrica</span><span class="df-v">{metric}</span></div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def footer_minimal(name: str, repo_url: str, linkedin_url: str, email: str):
+    """Footer minimalista integrado con el fondo de la página: nombre a la
+    izquierda, CTA centrado, enlaces discretos a la derecha. Sin tarjeta
+    oscura — no debe competir visualmente con el cierre del proyecto."""
+    st.markdown(
+        f"""
+        <div class="co-footer-mini">
+          <span class="ff-name">{name}</span>
+          <a class="ff-cta" href="{repo_url}" target="_blank">Repositorio del proyecto</a>
+          <div class="ff-links">
+            <a href="{linkedin_url}" target="_blank">LinkedIn</a>
+            <a href="mailto:{email}">Contacto</a>
+          </div>
         </div>
         """,
         unsafe_allow_html=True,
