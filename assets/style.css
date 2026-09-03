@@ -157,15 +157,22 @@ a.hero-scroll:hover{ color: var(--ink); }
 .finding .stat.pos{ color: var(--positive); font-weight: 700; }
 .finding .stat.neg{ color: var(--negative); font-weight: 700; }
 
-/* Pipeline / narrative steps */
-.pipe-row{ display:flex; align-items:center; flex-wrap:wrap; gap:.4rem; margin: 1.2rem 0; }
-.pipe-step{
-  background: var(--card); border-radius: 8px;
-  padding: .65rem 1.05rem; font-size: .82rem; font-weight: 600; color: var(--ink);
-  white-space: nowrap;
+/* Pipeline — es un diagrama de referencia (el orden de los pasos),
+   no un dato. Antes usaba la misma caja rellena que las tarjetas de
+   datos y competía visualmente con ellas. Ahora es una tira ligera,
+   delimitada por dos filetes finos, con texto pequeño y en gris: se
+   lee como "así es el proceso", no como "esto también es importante". */
+.pipe-row{
+  display:flex; align-items:center; flex-wrap:wrap; gap:.5rem;
+  margin: 1.6rem 0; padding: .85rem 0;
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
 }
-.pipe-arrow{ color: var(--muted); font-size: 1.1rem; }
-@media (max-width: 760px){ .pipe-row{ flex-direction: column; align-items: stretch; } .pipe-arrow{ transform: rotate(90deg); text-align:center; } }
+.pipe-step{
+  font-size: .76rem; font-weight: 600; color: var(--muted);
+  letter-spacing: .01em; white-space: nowrap;
+}
+.pipe-arrow{ color: var(--line); font-size: 1rem; }
+@media (max-width: 760px){ .pipe-row{ flex-direction: column; align-items: stretch; gap:.35rem; } .pipe-arrow{ display:none; } }
 
 /* Metodología como recorrido narrativo — no como documentación */
 .story-steps{ display:flex; flex-direction:column; margin-top: 1.2rem; }

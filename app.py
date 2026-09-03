@@ -155,10 +155,10 @@ ui.kpi_grid([
     {"num": "1", "label": "variable objetivo: ventas (€)"},
     {"num": "2023–25", "label": "periodo cubierto"},
 ])
-st.write("")
 ui.pipeline(["Datos crudos", "Transformación log", "Test de estacionariedad (ADF)",
              "Train / Test temporal", "SARIMA vs SARIMAX", "Escenarios"])
 
+ui.eyebrow("Las 5 señales", muted=True)
 cols = st.columns(len(EXOG_COLS))
 counts = {"promotion": int((df["promotion"] > 0).sum()), "strike": int(df["strike"].sum()),
           "war": int(df["war"].sum()), "logistics": int(df["logistics"].sum()),
@@ -168,9 +168,9 @@ for c, col in zip(cols, EXOG_COLS):
     with c:
         pct = counts[col] / n_weeks * 100
         st.markdown(
-            f'<div class="co-card" style="text-align:center; padding:1.2rem .8rem;">'
-            f'<div class="kpi-num" style="font-size:1.6rem;">{counts[col]}</div>'
-            f'<div class="kpi-label">{meta["label"]}<br>{pct:.1f}% de las semanas</div></div>',
+            f'<div class="co-card" style="text-align:center; padding:1.5rem 1rem;">'
+            f'<div class="kpi-num" style="font-size:2.1rem; color:{meta["color"]};">{counts[col]}</div>'
+            f'<div class="kpi-label" style="margin-top:.5rem;">{meta["label"]}<br>{pct:.1f}% de las semanas</div></div>',
             unsafe_allow_html=True,
         )
 st.write("")
