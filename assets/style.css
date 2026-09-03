@@ -275,6 +275,14 @@ a.hero-scroll:hover{ color: var(--ink); }
 .df-box{ background:var(--card); border-radius:10px; padding:1rem .9rem; }
 .df-box .df-k{ font-size:.65rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:.35rem; display:block;}
 .df-box .df-v{ font-size:.85rem; color:var(--ink); line-height:1.4; font-weight:600;}
+/* Las 4 tarjetas de cada fila eran indistinguibles a simple vista —
+   había que leer la etiqueta minúscula para saber cuál era cuál. La
+   Métrica (el resultado medible, el cierre de cada fila) pasa a fondo
+   oscuro: marca claramente el punto de llegada de la historia
+   Insight→Acción→Objetivo→Métrica sin añadir un color nuevo. */
+.df-box.df-metric{ background: var(--ink); }
+.df-box.df-metric .df-k{ color: var(--navy-4); }
+.df-box.df-metric .df-v{ color: #fff; }
 @media (max-width: 900px){
   .decision-flow{ grid-template-columns: 1fr; }
   .decision-flow .df-arrow{ transform: rotate(90deg); padding:.2rem 0;}

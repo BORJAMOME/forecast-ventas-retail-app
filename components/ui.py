@@ -232,7 +232,7 @@ def decision_flow(insight: str, action: str, objective: str, metric: str):
           <div class="df-arrow">&#8594;</div>
           <div class="df-box"><span class="df-k">Objetivo</span><span class="df-v">{objective}</span></div>
           <div class="df-arrow">&#8594;</div>
-          <div class="df-box"><span class="df-k">Métrica</span><span class="df-v">{metric}</span></div>
+          <div class="df-box df-metric"><span class="df-k">Métrica</span><span class="df-v">{metric}</span></div>
         </div>
         """,
         unsafe_allow_html=True,
