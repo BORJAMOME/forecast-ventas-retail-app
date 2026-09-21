@@ -99,7 +99,6 @@ python model/train.py    # tarda unos 10-15 minutos (entrena 15 modelos en total
 app.py                    la aplicación — toda la narrativa, capítulo a capítulo
 components/
   editorial.py              sistema editorial: un componente por función narrativa (lede, beat, figure…)
-  ui.py                    bloques visuales heredados de versiones anteriores (ya no los usa app.py)
   charts.py                 gráficos, con la paleta de colores del proyecto
 utils/
   data_loader.py             carga de datos y resultados (con cache de Streamlit)
