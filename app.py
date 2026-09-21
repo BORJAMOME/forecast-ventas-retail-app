@@ -1,22 +1,48 @@
 """
 Previsión de Ventas Retail — SARIMA vs SARIMAX
-Case study interactivo en Streamlit: de la pregunta de negocio a la
-decisión, pasando por los datos, el modelo y su explicabilidad.
+Reportaje digital de datos: del problema de negocio a la decisión, pasando por los datos, el método,
+la evidencia y sus límites.
+
+Narrativa (13 beats):
+  LEDE → 01 El problema → 02 Los datos → 03 Antes de modelar → 04 El camino hasta el modelo →
+  05 Los dos modelos → 06 ¿De dónde viene la mejora? → 07 ¿Cuánto podemos fiarnos? →
+  08 ¿Cuánto pesa cada señal? → 09 Ponlo a prueba → 10 ¿Qué hemos descubierto? →
+  11 ¿Qué podría hacer el negocio? → 12 Lo que sabemos y lo que no → 13 Del dato a la decisión
+
+Regla de copy: primero se explica qué significa, después se pone el nombre técnico (en notas
+«Detalle técnico» o entre paréntesis).
+
+La composición vive en assets/editorial.css + components/editorial.py (sistema editorial
+reutilizable); aquí solo hay contenido y datos. Toda cifra del texto sale de los artefactos de
+model/artifacts (train.py) o se calcula de ellos y de los datos (utils/audit.py): nada está escrito a mano.
 
 Autor: Borja Mora Méndez
 """
+import importlib
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 import streamlit as st
 
-from components import charts, ui
-from utils.data_loader import (EVENT_META, EXOG_COLS, artifacts_ready, load_csv,
-                                load_data, load_final_model, load_json)
+from components import charts
+from components import editorial as ed
+from utils import audit
+from utils.data_loader import artifacts_ready, load_csv, load_data, load_final_model, load_json
 from utils.forecasting import predict_scenario, scenario_from_inputs
 
+# Streamlit recarga app.py al detectar cambios, pero mantiene en memoria los módulos locales ya
+# importados. Tras un despliegue que modifica components/*.py y app.py a la vez, eso deja un
+# app.py nuevo llamando a un módulo antiguo (AttributeError). Recargarlos en cada ejecución lo
+# evita; el coste es despreciable.
+importlib.reload(charts)
+importlib.reload(ed)
+importlib.reload(audit)
+
 ROOT = Path(__file__).resolve().parent
+LECTURA = "16 min"
+ACTUALIZADO = "Septiembre 2026"
+FUENTE = "Elaboración propia"
+PLOT = {"displayModeBar": False}
 
 st.set_page_config(
     page_title="Previsión de Ventas Retail · SARIMA vs SARIMAX",
@@ -25,8 +51,8 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-with open(ROOT / "assets" / "style.css", encoding="utf-8") as f:
-    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+# Identidad del proyecto primero (paleta, tipografías); sistema editorial después
+ed.load_css(ROOT, "style.css", "editorial.css")
 
 if not artifacts_ready():
     st.error(
@@ -40,581 +66,722 @@ metrics = load_json("metrics.json")
 coefficients = load_json("coefficients.json")
 model_config = load_json("model_config.json")
 adf_results = load_json("adf_results.json")
-residual_diag = load_json("residual_diagnostics.json")
+final_params = load_json("final_params.json")
 forecast_df = load_csv("test_forecast.csv")
 backtest_df = load_csv("backtest.csv")
+residuals_df = load_csv("residuals.csv")
 final_model = load_final_model()
 
-last_date = df["date"].max()
-n_weeks = len(df)
-n_years = round((df["date"].max() - df["date"].min()).days / 365, 1)
-cv_pct = df["sales"].std() / df["sales"].mean() * 100
 
-# `promotion` es continua (0 a PROMO_MAX ~0.18) mientras que el resto de variables
-# son binarias (0/1). El coeficiente crudo de coefficients.json representa el impacto
-# por 1.0 unidad de intensidad — un descuento del 100%, que nunca ocurre en el histórico.
-# Para no mostrar un porcentaje irreal, aquí se reexpresa "por 1 punto porcentual de
-# descuento" (0.01) y se calcula además el impacto concreto al máximo histórico.
-PROMO_MAX = float(df["promotion"].max())
+# ---------------------------------------------------------------- formato en español
+MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre",
+         "octubre", "noviembre", "diciembre"]
 
 
-def pct_impact_for(beta: float, delta: float) -> float:
-    """Impacto porcentual real (no lineal) de mover una variable en `delta` unidades."""
-    return (np.exp(beta * delta) - 1) * 100
+def es(value: float, decimals: int = 1) -> str:
+    """Número con coma decimal, como se escribe en español."""
+    return f"{value:.{decimals}f}".replace(".", ",")
+
+
+def sgn(value: float, decimals: int = 1) -> str:
+    """Número con signo y coma decimal; el menos tipográfico (−) para no confundirlo con un guion."""
+    return f"{value:+.{decimals}f}".replace("-", "−").replace(".", ",")
+
+
+def pct(value: float, decimals: int = 1) -> str:
+    return f"{es(value, decimals)}%"
+
+
+def miles(value: float) -> str:
+    return f"{value:,.0f}".replace(",", ".")
 
 
 def eur(value: float, sign: bool = False) -> str:
-    """Formatea en euros con separador de miles europeo (punto), sin tocar el
-    resto de la frase — evita el bug de usar .replace(",", ".") sobre texto
-    que también contiene comas gramaticales."""
-    spec = f"{value:+,.0f}" if sign else f"{value:,.0f}"
-    return spec.replace(",", ".") + " €"
+    text = f"{value:+,.0f}".replace("-", "−") if sign else f"{value:,.0f}"
+    return text.replace(",", ".") + " €"
 
 
+def fecha(ts, year: bool = True) -> str:
+    return f"{ts.day} de {MESES[ts.month - 1]}" + (f" de {ts.year}" if year else "")
+
+
+def pvalue(p: float) -> str:
+    return "p &lt; 0,001" if p < 0.001 else f"p = {es(p, 3)}"
+
+
+# ---------------------------------------------------------------- cifras del texto
+n_weeks = len(df)
+first_date, last_date = df["date"].min(), df["date"].max()
+test_weeks = model_config["test_weeks"]
+n_train = n_weeks - test_weeks
+imp = metrics["improvement_pct"]
+sarima, sarimax = metrics["sarima"], metrics["sarimax"]
+
+ev = audit.event_summary(df)
+prof = audit.sales_profile(df)
+tb = audit.test_breakdown(forecast_df)
+naive = audit.naive_baselines(df, test_weeks)
+bt = audit.backtest_context(df, backtest_df)
+rd = audit.clean_residuals(residuals_df)
+betas = audit.final_betas(final_params)
+
+LABELS = charts.EVENT_LABELS
 coef_map = {c["variable"]: c for c in coefficients}
-coefficients_display = []
-for c in coefficients:
-    d = dict(c)
-    if c["variable"] == "promotion":
-        # Para comparar visualmente con las binarias (impacto "mientras dura el evento"),
-        # se muestra el impacto de la promoción a su intensidad máxima histórica, no por
-        # unidad de 1.0 (=100% de descuento, que nunca ocurre en los datos).
-        d["pct_impact"] = pct_impact_for(c["beta"], PROMO_MAX)
-    coefficients_display.append(d)
+PROMO_MAX = float(df["promotion"].max())
 
-ui.nav()
-ui.install_smooth_scroll()
 
-# ============================================================ HERO ==
-# Todo el hero va en UNA sola llamada a st.markdown: cada llamada por
-# separado crea su propio contenedor en el DOM, así que abrir <div class
-# ="hero-wrap"> en una y cerrarlo en otra produce un div vacío (0 hijos)
-# en vez de envolver el contenido — eso fue lo que generaba la línea
-# suelta encima del eyebrow (el border-bottom de ese div fantasma).
-st.markdown(
-    f"""
-    <div id="top" class="hero-wrap">
-      <p class="hero-kicker">Machine Learning Case Study · Series Temporales</p>
-      <h1 class="hero-title">¿Cuánto le cuesta a un negocio retail <em>no ver venir</em> una huelga, una guerra o una promoción?</h1>
-      <p class="hero-sub">Apliqué un modelo de series temporales a la previsión semanal de ventas de una cadena retail, comparando qué ocurre cuando solo mira el histórico frente a cuando también sabe qué está pasando en el mundo.</p>
-      <div class="hero-meta">
-        <span class="hero-pill">Borja Mora Méndez</span>
-        <span class="hero-pill">Python · statsmodels (SARIMAX)</span>
-        <span class="hero-pill">Streamlit</span>
-        <span class="hero-pill">{n_weeks} semanas de histórico</span>
-      </div>
-      <div class="hero-scroll-row">
-        <a href="#contexto" class="hero-scroll">explorar el caso &#8595;</a>
-      </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
+def impact(beta: float, delta: float) -> float:
+    """Cambio porcentual real (no lineal) de las ventas al mover una señal `delta` unidades."""
+    return (np.exp(beta * delta) - 1) * 100
+
+
+promo_per_point = impact(coef_map["promotion"]["beta"], 0.01)
+promo_at_max = impact(coef_map["promotion"]["beta"], PROMO_MAX)
+coefficients_display = [
+    {**c, "pct_impact": promo_at_max} if c["variable"] == "promotion" else c for c in coefficients
+]
+n_significant = sum(c["significant"] for c in coefficients)
+significant_names = [LABELS[c["variable"]].lower() for c in coefficients if c["significant"]]
+uncertain_names = [LABELS[c["variable"]].lower() for c in coefficients if not c["significant"]]
+uncertain_txt = " y ".join(uncertain_names)
+sigma = float(np.sqrt(dict(zip(final_params["names"], final_params["values"]))["sigma2"]))
+
+bt_mean, bt_median, bt_max, bt_min = bt["MAPE"].mean(), bt["MAPE"].median(), bt["MAPE"].max(), bt["MAPE"].min()
+bt_under_10 = int((bt["MAPE"] < 10).sum())
+RANGO = f"entre el {es(bt_median)}% y el {es(bt_mean)}%"
+worst = bt.nlargest(2, "MAPE").sort_values("iteration")
+worst_events = sorted({e for evs in worst["events"] for e in evs})
+worst_seen = [sum(seen.values()) for seen in worst["seen"]]      # semanas del evento ya vistas al entrenar
+
+weekly_change = prof["weekly_change_median"]
+yearly = prof["yearly_mean"]
+years = sorted(yearly)
+growth = prof["yearly_growth"]
+promo_diff = (prof["promo_mean"] / prof["no_promo_mean"] - 1) * 100
+test_start, test_end = forecast_df["date"].min(), forecast_df["date"].max()
+war_dates = df.loc[df["war"] == 1, "date"]
+ma_l1 = dict(zip(final_params["names"], final_params["values"]))["ma.L1"]
+adf_raw = adf_results[0]
+
+# ============================================================ LEDE ==
+ed.skip_link("contexto")
+ed.topbar(
+    "Previsión de Ventas · Retail",
+    [("contexto", "Problema"), ("datos", "Datos"), ("metodo", "Método"), ("modelos", "Modelos"),
+     ("validacion", "Validación"), ("efectos", "Efectos"), ("playground", "Playground"),
+     ("resultado", "Resultado"), ("conclusion", "Conclusión")],
+    back_url="https://borjamora.es/",
+)
+ed.anchor_scroll()
+ed.lede(
+    kicker="Machine Learning Case Study · Series temporales",
+    headline="¿Cuánto mejora una previsión de ventas cuando sabe qué estaba pasando <em>fuera</em> de la tienda?",
+    deck=(
+        "Una cadena retail necesita saber cuánto va a vender cada semana para decidir cuánto stock pedir y cuánto "
+        f"personal programar. Comparé dos modelos sobre {n_weeks} semanas de ventas: uno que solo mira el histórico "
+        "y otro que, además, sabe si esa semana hubo promoción, huelga, conflicto o problemas logísticos. La "
+        "pregunta no es solo <b>cuál acierta más</b>, sino <b>cuánto de esa mejora es fiable</b>."
+    ),
+    meta=[
+        ("Autor", "Borja Mora Méndez"),
+        ("Stack", "Python · statsmodels (SARIMA y SARIMAX) · Streamlit"),
+        ("Datos", f"{n_weeks} semanas · {MESES[first_date.month - 1][:3]} {first_date.year} – "
+                  f"{MESES[last_date.month - 1][:3]} {last_date.year}"),
+        ("Actualizado", ACTUALIZADO),
+        ("Lectura", LECTURA),
+    ],
 )
 
-# ============================================================ CONTEXTO ==
-ui.section_open("contexto")
-ui.eyebrow("Contexto")
-ui.h2("El problema")
-ui.lead(
-    "Prever ventas es crítico para planificar inventario, personal y promociones. "
-    "Pero un modelo que solo mira el histórico de ventas no puede anticipar lo que "
-    "pasa fuera del negocio: una huelga de transporte, un conflicto geopolítico, un "
-    "problema logístico. El equipo necesita saber cuánto pesa cada uno de esos "
-    "eventos para poder planificar con ellos, no a pesar de ellos."
+# ============================================================ 01 · EL PROBLEMA ==
+ed.beat(
+    "contexto", "01", "Problema", "El problema",
+    deck=(
+        "Prever ventas es lo que decide cuánto stock pedir, cuánta gente programar y cuándo lanzar una promoción. "
+        "Un modelo que solo mira el histórico aprende la tendencia y las repeticiones del calendario, pero <b>no "
+        "puede saber que esa semana hubo una huelga</b>. Y cuando la previsión falla, el coste aparece en dos "
+        "sitios: estanterías vacías o un almacén lleno."
+    ),
 )
-ui.kpi_grid([
-    {"num": f"{n_weeks}", "label": "semanas de histórico"},
-    {"num": f"{n_years}", "label": "años de operación (2023–2025)"},
-    {"num": f"±{cv_pct:.0f}%", "label": "variación semana a semana"},
-    {"num": "5", "label": "tipos de eventos exógenos registrados"},
-])
-st.write("")
-ui.question_block(
+ed.band(
     "La pregunta de negocio",
-    '¿Se puede anticipar el impacto de una huelga, una guerra o una promoción '
-    '<span class="accent">antes de que ocurra</span>, y usarlo para planificar?',
-    "Quise convertir el modelo en algo más que un predictor: una herramienta de "
-    "simulación, \"¿qué pasa si...?\", para decisiones de inventario, personal y campañas.",
-)
-ui.section_close()
-
-# ============================================================ DATOS ==
-ui.section_open("datos")
-ui.eyebrow("Materia prima")
-ui.h2("Los datos")
-ui.lead(
-    "Trabajé con 156 observaciones semanales de ventas en euros, con 5 señales externas "
-    "registradas cada semana: intensidad de promoción, huelgas, conflicto bélico, problemas "
-    "logísticos y otras incidencias. Sin huecos, sin duplicados. El reto no estuvo en limpiar "
-    "los datos, sino en decidir si esas 5 señales realmente ayudaban a predecir mejor."
-)
-ui.kpi_grid([
-    {"num": f"{n_weeks}", "label": "observaciones semanales"},
-    {"num": "5", "label": "variables exógenas"},
-    {"num": "1", "label": "variable objetivo: ventas (€)"},
-    {"num": "2023–25", "label": "periodo cubierto"},
-])
-ui.pipeline(["Datos crudos", "Transformación log", "Test de estacionariedad (ADF)",
-             "Train / Test temporal", "SARIMA vs SARIMAX", "Escenarios"])
-
-ui.eyebrow("Las 5 señales", muted=True)
-cols = st.columns(len(EXOG_COLS))
-counts = {"promotion": int((df["promotion"] > 0).sum()), "strike": int(df["strike"].sum()),
-          "war": int(df["war"].sum()), "logistics": int(df["logistics"].sum()),
-          "other_incident": int(df["other_incident"].sum())}
-for c, col in zip(cols, EXOG_COLS):
-    meta = EVENT_META[col]
-    with c:
-        pct = counts[col] / n_weeks * 100
-        st.markdown(
-            f'<div class="co-card" style="text-align:center; padding:1.5rem 1rem;">'
-            f'<div class="kpi-num" style="font-size:2.1rem; color:{meta["color"]};">{counts[col]}</div>'
-            f'<div class="kpi-label" style="margin-top:.5rem;">{meta["label"]}<br>{pct:.1f}% de las semanas</div></div>',
-            unsafe_allow_html=True,
-        )
-st.write("")
-ui.finding(
-    "En el histórico no hay ninguna semana con más de un evento simultáneo: cada incidente "
-    "aparece aislado. Por eso diseñé el <b>Playground</b> de más abajo para que puedas "
-    "combinarlos y simular lo que el histórico nunca mostró."
-)
-ui.section_close()
-
-# ============================================================ EXPLORACIÓN ==
-ui.section_open("exploracion")
-ui.eyebrow("Antes de modelar")
-ui.h2("¿Qué me dicen los datos?")
-ui.lead("Antes de tocar ningún algoritmo, me hice tres preguntas simples: ¿cómo se mueven las "
-        "ventas?, ¿se nota el efecto de los eventos a simple vista?, ¿las promociones realmente "
-        "venden más?")
-
-h3_1, h3_2 = st.columns([1, 1])
-with h3_1:
-    ui.h3("Evolución de las ventas")
-with h3_2:
-    pass
-st.plotly_chart(charts.sales_evolution(df), use_container_width=True, config={"displayModeBar": False})
-ui.finding(
-    f"Venta media semanal de <b>{eur(df['sales'].mean())}</b> "
-    f"(rango {eur(df['sales'].min())} – {eur(df['sales'].max())}), con una tendencia de fondo "
-    "al alza que la media móvil de 12 semanas deja ver con claridad. Hay estacionalidad, pero también "
-    "ruido: ahí es donde entran los eventos externos.",
+    '¿Puede una previsión tener en cuenta <span class="accent">lo que ocurre fuera del histórico</span> y, además, '
+    "servir para preguntarse «¿y si…?» antes de decidir?",
+    "No quería solo un predictor: quería una herramienta para simular escenarios de inventario, personal y "
+    "campañas. Pero antes de simular hay que responder a otra pregunta: cuánto se puede confiar en el modelo.",
 )
 
-ui.h3("Ventas con incidencias superpuestas")
-st.plotly_chart(charts.sales_with_events(df), use_container_width=True, config={"displayModeBar": False})
-ui.finding(
-    "Las caídas más pronunciadas de la serie coinciden visualmente con huelgas y problemas logísticos, "
-    "y los picos más altos suelen coincidir con promociones. Es una pista, no una prueba: para "
-    "cuantificarla necesitaba un modelo."
+# ============================================================ 02 · LOS DATOS ==
+ed.beat(
+    "datos", "02", "Datos", "Los datos",
+    deck=(
+        f"Trabajamos con <b>{n_weeks} observaciones semanales</b> de ventas, en euros, entre "
+        f"{MESES[first_date.month - 1]} de {first_date.year} y {MESES[last_date.month - 1]} de {last_date.year}. "
+        "Cada semana viene acompañada de cinco señales que indican qué estaba pasando: la intensidad de la "
+        "promoción, y si hubo huelga, conflicto bélico, problemas logísticos u otras incidencias. No hay huecos ni "
+        "semanas duplicadas: el reto no fue limpiar los datos, sino decidir si esas cinco señales ayudaban de verdad "
+        "a prever mejor."
+    ),
 )
-
-ui.h3("¿Las promociones venden más?")
-st.plotly_chart(charts.promotion_boxplot(df), use_container_width=True, config={"displayModeBar": False})
-diff_pct = (df.loc[df["promotion"] > 0, "sales"].mean() / df.loc[df["promotion"] == 0, "sales"].mean() - 1) * 100
-ui.finding(
-    f"Las semanas con promoción activa venden de media un {ui.stat(f'{diff_pct:.1f}% más', 'pos')} que las "
-    "semanas sin ella. Es una diferencia visible incluso antes de modelar: buena señal de que la variable "
-    "iba a aportar."
-)
-ui.section_close()
-
-# ============================================================ METODOLOGÍA ==
-ui.section_open("metodologia")
-ui.eyebrow("Cómo se llegó al modelo")
-ui.h2("El camino hasta el modelo")
-ui.lead(
-    "En series temporales no se puede barajar el tiempo. Tuve que respetar el orden en que "
-    "ocurrieron las cosas. Así fue el recorrido, paso a paso."
-)
-ui.story_steps([
-    ("Miré los datos",
-     "Analicé tres años de ventas para entender el patrón de fondo antes de tocar ningún "
-     "modelo: estacionalidad, tendencia, ruido."),
-    ("Probé con solo el pasado",
-     "Entrené un primer modelo, SARIMA, que únicamente mira el histórico de ventas. Fue el "
-     "punto de partida honesto: si lo que venía después no lo mejoraba, el contexto no valía nada."),
-    ("Añadí el contexto",
-     "Incorporé huelgas, guerra, logística y promociones a ese mismo modelo (SARIMAX) para "
-     "comprobar si esa información realmente cambiaba algo."),
-    ("Validé sin hacer trampas",
-     f"Reservé las últimas {model_config['test_weeks']} semanas para comprobar cada modelo con datos que "
-     "nunca había visto, y repetí el experimento en 13 ventanas distintas del pasado para no "
-     "fiarme de un golpe de suerte."),
+ed.provenance([
+    ("Dataset", "SALES_FORECASTING_VARIABLES_EXOGENAS.xlsx"),
+    ("Observaciones", f"{n_weeks} semanas, del {fecha(first_date)} al {fecha(last_date)}"),
+    ("Variable a prever", "Ventas semanales (€)"),
+    ("Señales usadas", "5: promoción, huelga, guerra, logística y otras incidencias"),
+    ("Señales sin usar", "Índice de precios y temperatura (están en el fichero)"),
+    ("Valores vacíos", f"{int(df.drop(columns=['ma_12', 'log_sales']).isna().sum().sum())} · sin huecos ni semanas duplicadas"),
+    ("Elaboración", FUENTE),
 ])
 
-with st.expander("Para quien quiera el detalle técnico — estacionariedad, ACF/PACF, órdenes del modelo"):
-    st.markdown(
-        "Los modelos ARIMA necesitan una serie **estacionaria** (media y varianza constantes). "
-        "Se aplicó el test de Dickey-Fuller aumentado (ADF) sobre la serie original y transformada:"
-    )
-    adf_cols = st.columns(len(adf_results))
-    for c, res in zip(adf_cols, adf_results):
-        with c:
-            st.metric(res["name"], "Estacionaria" if res["is_stationary"] else "No estacionaria",
-                      f'p={res["p_value"]:.4f}')
-    st.markdown(
-        "La transformación logarítmica estabiliza la varianza y permite leer los coeficientes del "
-        "SARIMAX como **cambios porcentuales aproximados** — clave para la sección de explicabilidad. "
-        "Con la serie diferenciada y en log, el ACF y PACF confirmaron un modelo "
-        f"`SARIMA{model_config['order']}{model_config['seasonal_order']}` con estacionalidad anual (52 semanas)."
-    )
-
-st.write("")
-st.plotly_chart(charts.train_test_split(df, model_config["test_weeks"]), use_container_width=True,
-                 config={"displayModeBar": False})
-ui.finding(
-    f"Así dividí las {n_weeks} semanas: {n_weeks - model_config['test_weeks']} para entrenar y "
-    f"las últimas {model_config['test_weeks']} para comprobar honestamente si el modelo acertaba, nunca al revés."
-)
-ui.section_close()
-
-# ============================================================ MODELO ==
-ui.section_open("modelo")
-ui.eyebrow("¿Cómo intenta resolverlo?")
-ui.h2("SARIMA vs SARIMAX")
-ui.lead(
-    "El SARIMA baseline solo ve el histórico de ventas. El SARIMAX ve lo mismo, "
-    "más las 5 señales externas. La pregunta que quería responder en esta sección es simple: "
-    "¿de verdad importa saber que hubo una huelga?"
+ed.subhead("¿Con qué frecuencia ocurre cada cosa?", level="wide")
+with ed.figure("senales"):
+    ed.cols([
+        {"tag": f"{ev['promotion']['weeks']} semanas · {ev['promotion']['episodes']} episodios",
+         "title": "Promoción",
+         "text": f"Con una intensidad de entre el {df.loc[df['promotion'] > 0, 'promotion'].min() * 100:.0f}% y el "
+                 f"{PROMO_MAX * 100:.0f}%. Es lo único que decide el propio negocio."},
+        {"tag": f"{ev['strike']['weeks']} semanas · {ev['strike']['episodes']} episodios",
+         "title": "Huelga", "text": f"Rachas de hasta {ev['strike']['max_run']} semanas seguidas."},
+        {"tag": f"{ev['war']['weeks']} semanas · {ev['war']['episodes']} episodio" + ("s" if ev["war"]["episodes"] > 1 else ""),
+         "title": "Guerra",
+         "text": f"Una sola racha, del {war_dates.min().day} de {MESES[war_dates.min().month - 1]} al "
+                 f"{war_dates.max().day} de {MESES[war_dates.max().month - 1]} de {war_dates.max().year}."},
+        {"tag": f"{ev['logistics']['weeks']} semanas · {ev['logistics']['episodes']} episodios",
+         "title": "Problema logístico", "text": f"Rachas de hasta {ev['logistics']['max_run']} semanas seguidas."},
+        {"tag": f"{ev['other_incident']['weeks']} semanas · {ev['other_incident']['episodes']} episodios",
+         "title": "Otra incidencia", "text": f"Rachas de hasta {ev['other_incident']['max_run']} semanas seguidas."},
+    ], count=5)
+ed.insight(
+    "Lo importante no es el porcentaje de semanas, sino el número de <b>episodios</b>. Cuando un evento aparece "
+    "pocas veces, el modelo puede medir cuánto cambiaron las ventas esas semanas, pero <b>no puede separar su "
+    "efecto de todo lo demás que pasó a la vez</b>. La guerra, por ejemplo, es un único episodio.",
+    aside=(
+        f"Los cuatro eventos adversos no coinciden nunca entre sí ({ev['adverse_weeks']} semanas adversas, "
+        f"{ev['adverse_overlap']} con más de un evento). Solo {ev['promo_with_adverse']} semanas combinan una "
+        "promoción con un evento adverso. Por eso combinarlos en el Playground es <i>extrapolar</i>, no repetir "
+        "algo que el histórico ya haya mostrado."
+    ),
 )
 
-m1, m2, m3 = st.columns(3)
-with m1:
-    st.metric("MAE — error medio", eur(metrics["sarimax"]["mae"]),
-              f'-{metrics["improvement_pct"]["mae"]:.1f}% vs SARIMA', delta_color="normal")
-with m2:
-    st.metric("MAPE — error %", f'{metrics["sarimax"]["mape"]:.2f}%',
-              f'-{metrics["improvement_pct"]["mape"]:.1f}% vs SARIMA', delta_color="normal")
-with m3:
-    st.metric("RMSE", eur(metrics["sarimax"]["rmse"]),
-              f'-{metrics["improvement_pct"]["rmse"]:.1f}% vs SARIMA', delta_color="normal")
-
-with st.expander("¿Qué significan MAE, MAPE y RMSE?"):
-    st.markdown(
-        "- **MAE** — de media, en cuántos euros se equivoca el modelo. Fácil de leer: "
-        f"el SARIMAX se equivoca {eur(metrics['sarimax']['mae'])} de media por semana.\n"
-        "- **MAPE** — el mismo error, pero en porcentaje. Permite comparar entre negocios de "
-        "distinto tamaño. Por debajo del 10% se considera un pronóstico bueno en retail.\n"
-        "- **RMSE** — como el MAE, pero penaliza más los errores grandes. Si sube mucho más que "
-        "el MAE, es señal de que hay semanas con fallos puntuales grandes."
-    )
-
-st.write("")
-ui.h3("Predicción vs realidad — últimas semanas de test")
-st.plotly_chart(charts.model_comparison(forecast_df), use_container_width=True, config={"displayModeBar": False})
-mape_improvement = metrics["improvement_pct"]["mape"]
-ui.finding(
-    f"Añadir las 5 variables exógenas reduce el error un {ui.stat(f'{mape_improvement:.0f}%', 'pos')} "
-    f"en las tres métricas a la vez (MAE, MAPE y RMSE). La serie histórica sola no basta cuando hay "
-    "eventos que mueven las cifras. Descubrí que el SARIMAX no solo predice mejor: también explica "
-    "*por qué* se equivoca menos."
+# ============================================================ 03 · ANTES DE MODELAR ==
+ed.beat(
+    "exploracion", "03", "Antes de modelar", "Antes de modelar, mirar los datos",
+    deck=(
+        "Antes de tocar ningún modelo me hice tres preguntas sencillas: <b>¿cómo se mueven las ventas?</b> ¿Se "
+        "nota el efecto de los eventos a simple vista? Y ¿venden más las semanas con promoción?"
+    ),
 )
-ui.section_close()
 
-# ============================================================ EXPLICABILIDAD ==
-ui.section_open("explicabilidad")
-ui.eyebrow("¿Por qué predice eso?")
-ui.h2("Explicabilidad del modelo")
-ui.lead(
-    "El SARIMAX no es una caja negra: cada variable exógena tiene un coeficiente que se traduce "
-    "directamente en un impacto porcentual sobre las ventas, manteniendo todo lo demás constante."
-)
-st.plotly_chart(charts.coefficient_impact(coefficients_display), use_container_width=True,
-                 config={"displayModeBar": False})
-
-labels = {"promotion": "Promoción", "strike": "Huelga", "war": "Guerra",
-          "logistics": "Problema logístico", "other_incident": "Otra incidencia"}
-cols_c = st.columns(len(coefficients_display))
-for c, coef in zip(cols_c, sorted(coefficients_display, key=lambda x: -abs(x["pct_impact"]))):
-    with c:
-        tone = "pos" if coef["pct_impact"] > 0 else "neg"
-        sig = "significativo" if coef["significant"] else "no significativo"
-        unit = f"al {PROMO_MAX*100:.0f}% desc." if coef["variable"] == "promotion" else "mientras dura"
-        pct_txt = ui.stat(f'{coef["pct_impact"]:+.2f}% en ventas', tone)
-        ui.finding(
-            f'<b>{labels.get(coef["variable"], coef["variable"])}</b><br>'
-            f'{pct_txt} <span style="font-size:.7rem; opacity:.7;">({unit})</span><br>'
-            f'<span style="font-size:.75rem; opacity:.75;">p={coef["p_value"]:.3f} · {sig}</span>'
+ed.subhead("¿Cómo se mueven las ventas?", level="wide")
+with ed.split("evolucion", "8-4") as (viz, txt):
+    with viz:
+        st.plotly_chart(charts.sales_evolution(df), use_container_width=True, config=PLOT)
+        ed.caption("FIG. 01", "Ventas semanales (€) y su media móvil de 12 semanas.", FUENTE)
+    with txt:
+        ed.insight(
+            f"Las ventas medias por semana pasan de {eur(yearly[years[0]])} en {years[0]} a "
+            f"{eur(yearly[years[1]])} en {years[1]} y {eur(yearly[years[2]])} en {years[2]}: un {pct(growth[0], 0)} "
+            f"y un {pct(growth[1], 0)} más cada año. Sobre esa tendencia hay altibajos: una semana típica cambia "
+            f"un {pct(weekly_change)} respecto a la anterior. Ahí es donde pueden entrar los eventos externos."
         )
-promo_beta = coef_map["promotion"]["beta"]
-promo_per_pp = pct_impact_for(promo_beta, 0.01)
-promo_at_max = pct_impact_for(promo_beta, PROMO_MAX)
-ui.finding(
-    f"La promoción es continua (0–{PROMO_MAX*100:.0f}% de descuento en el histórico), así que su coeficiente "
-    f"se lee <b>por punto porcentual</b>: +{promo_per_pp:.2f}% de ventas por cada 1pp adicional de descuento. "
-    f"Al nivel máximo histórico ({PROMO_MAX*100:.0f}%), eso equivale a un {ui.stat(f'{promo_at_max:+.1f}%', 'pos')} "
-    f"en ventas — no al {coef_map['promotion']['pct_impact']:.0f}% que saldría de leer el coeficiente como si "
-    "el descuento pudiera llegar al 100%."
-)
-ui.body(
-    "Importante: son efectos estimados *ceteris paribus* (aislando cada variable) y asumen que el "
-    "efecto de cada evento es constante en el tiempo — no implican causalidad directa sin un análisis más profundo."
-)
-ui.section_close()
 
-# ============================================================ PLAYGROUND ==
-ui.section_open("playground")
-ui.eyebrow("Pruébalo tú mismo")
-ui.h2("Playground — simula un escenario")
-ui.lead(
-    "Mueve las variables como si fueras a planificar las próximas semanas: ¿qué pasa si lanzas "
-    "una promoción agresiva? ¿Y si coincide con una huelga? El modelo genera la predicción en vivo."
+ed.subhead("¿Se nota el efecto de los eventos a simple vista?", level="wide")
+with ed.figure("eventos"):
+    st.plotly_chart(charts.sales_with_events(df), use_container_width=True, config=PLOT)
+    ed.caption("FIG. 02", "Ventas semanales con las semanas de evento señaladas. El tamaño de la burbuja verde es la "
+                          "intensidad de la promoción.", FUENTE)
+adv = prof["adverse_vs_local"]
+ed.insight(
+    f"Las semanas de huelga venden de media un {es(abs(adv['strike']), 0)}% menos que su entorno; las de guerra, un "
+    f"{es(abs(adv['war']), 0)}%; las de problemas logísticos, un {es(abs(adv['logistics']), 0)}%, y las de otras "
+    f"incidencias, un {es(abs(adv['other_incident']), 0)}%. Es una <b>pista, no una prueba</b>: muchas cosas cambian "
+    "a la vez y hace falta un modelo para separarlas.",
+    aside=(
+        "«Entorno» = media móvil centrada de 12 semanas, que incluye la propia semana del evento, así que las "
+        "caídas reales son algo mayores que las indicadas."
+    ),
 )
 
-pg_left, pg_right = st.columns([1, 1.4], gap="large")
-with pg_left:
-    horizon = st.slider("Horizonte de predicción (semanas)", 1, 8, 4)
-    promotion = st.select_slider(
-        "Intensidad de promoción", options=[0.0, 0.05, 0.08, 0.12, 0.18],
-        value=0.0, format_func=lambda v: "Sin promoción" if v == 0 else f"{v*100:.0f}% descuento",
-    )
-    st.markdown("**Eventos activos durante todo el horizonte**")
-    c1, c2 = st.columns(2)
-    with c1:
+ed.subhead("¿Venden más las semanas con promoción?", level="wide")
+with ed.split("promocion", "5-7") as (txt, viz):
+    with txt:
+        ed.insight(
+            f"Las semanas con promoción venden de media {eur(prof['promo_mean'])}, frente a "
+            f"{eur(prof['no_promo_mean'])} sin ella: un {pct(promo_diff)} más. Pero esa diferencia bruta mezcla "
+            f"varias cosas. Las promociones se concentran en los años recientes ({prof['promo_per_year'][years[0]]} "
+            f"semanas en {years[0]}, {prof['promo_per_year'][years[1]]} en {years[1]} y "
+            f"{prof['promo_per_year'][years[2]]} en {years[2]}), cuando las ventas base ya eran más altas, y "
+            "además <b>la promoción la decide el negocio</b>: no ocurre al azar. Para separar todo eso hace falta "
+            "un modelo."
+        )
+    with viz:
+        st.plotly_chart(charts.promotion_boxplot(df), use_container_width=True, config=PLOT)
+        ed.caption("FIG. 03", "Distribución de las ventas semanales con y sin promoción. El rombo marca la media.", FUENTE)
+
+# ============================================================ 04 · EL CAMINO HASTA EL MODELO ==
+ed.beat(
+    "metodo", "04", "Método", "El camino hasta el modelo",
+    deck=(
+        "En series temporales no se puede barajar el tiempo: cada semana se parece a las anteriores, y mezclar "
+        "pasado y futuro sería hacer trampa. Todo el método está pensado para <b>no engañarnos</b>: empezar por "
+        "una referencia honesta, examinar con datos que el modelo nunca ha visto y repetir el examen más de una vez."
+    ),
+)
+ed.route(["Ventas semanales", "Escala logarítmica", "Corte temporal", "SARIMA", "SARIMAX", "Backtesting", "Escenarios"])
+ed.steps([
+    ("Puse las ventas en una escala comparable",
+     "Trabajé con el logaritmo de las ventas: así una subida del 10% pesa igual en una semana floja que en una "
+     "fuerte, y los coeficientes del modelo se leen como <b>cambios porcentuales</b>."),
+    ("Empecé solo con el pasado (SARIMA)",
+     "Un modelo que únicamente usa el histórico de ventas: su tendencia y su calendario anual. Es el punto de "
+     "partida honesto: <b>si lo que viene después no lo mejora, el contexto no aporta nada</b>."),
+    ("Añadí el contexto (SARIMAX)",
+     "El mismo modelo, más las cinco señales de cada semana. Así puedo comprobar si saber qué estaba pasando "
+     "cambia algo."),
+    ("Examiné sin hacer trampas",
+     f"Entrené con las primeras {n_train} semanas y reservé las últimas {test_weeks} como examen: datos que el "
+     "modelo no había visto. Nunca al revés."),
+    ("Repetí el examen en 13 ventanas",
+     "Un solo examen puede salir bien por casualidad. Repetí el ejercicio 13 veces: entrenar hasta una semana, "
+     "predecir las 4 siguientes, avanzar y volver a empezar."),
+])
+ed.note(
+    f"<b>Detalle técnico.</b> SARIMA({','.join(map(str, model_config['order']))})"
+    f"({','.join(map(str, model_config['seasonal_order']))}) ajustado con "
+    f"statsmodels sobre el logaritmo de las ventas. El test ADF ya da la serie original como estacionaria "
+    f"({pvalue(adf_raw['p_value'])}), pero el modelo diferencia igualmente (d=1, D=1) por la convención del notebook "
+    f"original, y el coeficiente MA(1) queda en {sgn(ma_l1, 3)}, un síntoma habitual de sobrediferenciación. Los errores "
+    "fuera de muestra se miden igual, pero probar una especificación con menos diferenciación es un paso pendiente."
+)
+
+ed.subhead("¿Cómo dividimos el tiempo?", level="wide")
+with ed.figure("corte"):
+    st.plotly_chart(charts.train_test_split(df, test_weeks), use_container_width=True, config=PLOT)
+    ed.caption("FIG. 04", f"Las {n_train} primeras semanas para entrenar y las {test_weeks} últimas como examen.", FUENTE)
+ed.insight(
+    f"El examen cubre de {fecha(test_start, False)} a {fecha(test_end)}. Un detalle que conviene tener presente al "
+    f"leer el resultado: en esas {test_weeks} semanas solo hubo <b>{tb['n_event']} con incidencia</b> y "
+    f"{'ninguna' if tb['n_promo'] == 0 else tb['n_promo']} con promoción."
+)
+
+# ============================================================ 05 · LOS DOS MODELOS ==
+ed.beat(
+    "modelos", "05", "Modelos", "Los dos modelos: el que mira el pasado y el que mira el contexto", weight="major",
+    deck=(
+        "El <b>SARIMA</b> solo ve el histórico de ventas. El <b>SARIMAX</b> ve lo mismo y, además, las cinco señales "
+        "de cada semana. La pregunta es sencilla: <b>¿de verdad importa saber qué estaba pasando?</b>"
+    ),
+)
+ed.subhead("¿Qué predijo cada modelo en las semanas de examen?", level="wide")
+with ed.figure("comparacion"):
+    st.plotly_chart(charts.model_comparison(forecast_df), use_container_width=True, config=PLOT)
+    ed.caption("FIG. 05", "Ventas reales y predicción de cada modelo en las semanas de examen. La banda es el intervalo "
+                          "de predicción al 95% del SARIMAX; los rombos rojos marcan las semanas con incidencia.",
+               "Modelos entrenados en este proyecto")
+ed.subhead("En resumen")
+ed.metrics([
+    ("Error medio (MAE)", eur(sarimax["mae"]),
+     f"Con el SARIMAX, la previsión de una semana se desvía de media {eur(sarimax['mae'])}; con el SARIMA, "
+     f"{eur(sarima['mae'])}."),
+    ("Error porcentual (MAPE)", pct(sarimax["mape"]),
+     f"De cada 100 € que se venden, el SARIMAX se equivoca de media en {es(sarimax['mape'])} €; el SARIMA, en "
+     f"{es(sarima['mape'])} €."),
+    ("Fallos grandes (RMSE)", eur(sarimax["rmse"]),
+     f"Como el error medio, pero castiga más las semanas en que el modelo falla por mucho. SARIMA: "
+     f"{eur(sarima['rmse'])}."),
+    ("Referencia sin modelo", pct(naive["last_value"]),
+     f"Repetir las ventas de la última semana conocida se equivoca un {es(naive['last_value'])}%. El SARIMA apenas "
+     f"mejora eso ({pct(sarima['mape'])}); el SARIMAX, sí."),
+])
+ed.insight(
+    f"Con las cinco señales, el error baja entre un {min(imp.values()):.0f}% y un {max(imp.values()):.0f}% según la "
+    "métrica: el SARIMAX gana en las tres. Es un buen resultado, pero <b>es el resultado de "
+    f"{test_weeks} semanas concretas</b>. La siguiente pregunta es de dónde sale esa mejora.",
+    aside=(
+        f"El intervalo al 95% del SARIMAX contiene el dato real en {tb['coverage']} de {tb['n']} semanas y mide de "
+        f"media el {es(tb['width']['sarimax'], 0)}% de las ventas de esa semana; el del SARIMA, el "
+        f"{es(tb['width']['sarima'], 0)}%. Los intervalos son condicionales: suponen que se conocen las señales de "
+        "cada semana."
+    ),
+)
+
+# ============================================================ 06 · ¿DE DÓNDE VIENE LA MEJORA? ==
+ed.beat(
+    "origen", "06", "Origen de la mejora", "¿De dónde viene la mejora?",
+    deck=(
+        f"Un {imp['mape']:.0f}% menos de error suena a que el contexto mejora la previsión <b>todas las semanas</b>. "
+        f"Separar las {test_weeks} semanas del examen cuenta otra historia."
+    ),
+)
+ed.subhead("Semana a semana", level="wide")
+with ed.figure("error-semanal"):
+    st.plotly_chart(charts.weekly_error(tb["weekly"]), use_container_width=True, config=PLOT)
+    ed.caption("FIG. 06", "Error absoluto de cada modelo en cada semana de examen, como porcentaje de las ventas de esa "
+                          "semana. Sombreadas, las semanas con incidencia.", "Modelos entrenados en este proyecto")
+ed.metrics([
+    (f"Semanas con incidencia ({tb['n_event']})", pct(tb["event_ape"]["sarimax"]),
+     f"El SARIMAX se equivoca un {es(tb['event_ape']['sarimax'])}% de media en las semanas con incidencia; el SARIMA, "
+     f"un {es(tb['event_ape']['sarima'])}%. Aquí saber lo que pasaba lo cambia casi todo."),
+    (f"Semanas sin eventos ({tb['n_quiet']})", pct(tb["quiet_ape"]["sarimax"]),
+     f"En las semanas normales, el SARIMAX se equivoca un {es(tb['quiet_ape']['sarimax'])}% y el SARIMA un "
+     f"{es(tb['quiet_ape']['sarima'])}%: una diferencia pequeña."),
+    ("Semanas en que gana el SARIMAX", f"{tb['wins']} de {tb['n']}",
+     f"Pierde en las otras {tb['n'] - tb['wins']}. Añadir contexto no mejora todas las semanas."),
+])
+ed.insight(
+    f"La mayor parte de la mejora viene de <b>{tb['n_event']} semanas</b>. Cuando no ocurre nada especial, ambos "
+    "modelos rinden casi igual: el contexto protege sobre todo de los sustos."
+)
+ed.subhead("Dos advertencias sobre el examen")
+ed.passage(
+    f"Con {tb['n']} semanas no se puede afirmar que la diferencia sea concluyente: una prueba estadística sobre los "
+    f"errores de cada semana da {pvalue(tb['wilcoxon_p'])}, lejos del 0,05 que suele exigirse. Y hay una segunda "
+    "trampa: en este examen <b>el modelo conoce de antemano qué eventos ocurrirán esas semanas</b>. En la vida "
+    "real, una promoción se conoce porque se planifica; una huelga o un conflicto, no. "
+    f"El {imp['mape']:.0f}% es lo que se gana <b>si se sabe qué va a pasar</b>.",
+    aside=(
+        "Prueba de Wilcoxon de rangos con signo (dos colas) sobre el error porcentual absoluto de cada semana "
+        f"(n={tb['n']}). "
+        + ("Además, ninguna de las semanas de examen tiene promoción: el examen no dice nada sobre lo bien que se "
+           "prevén las promociones." if tb["n_promo"] == 0 else "")
+    ),
+)
+
+# ============================================================ 07 · ¿CUÁNTO PODEMOS FIARNOS? ==
+ed.beat(
+    "validacion", "07", "Validación", "¿Cuánto podemos fiarnos?", weight="major",
+    deck=(
+        "Un solo examen puede salir bien por casualidad. Por eso repetí el experimento en 13 ventanas del pasado: "
+        "entrenar hasta una semana, predecir las 4 siguientes, avanzar y volver a empezar. Así se ve <b>cuánto "
+        "varía el error</b> de un momento a otro."
+    ),
+)
+ed.subhead("¿Es estable el error?", level="wide")
+with ed.figure("backtest"):
+    st.plotly_chart(charts.backtest_mape(bt, sarimax["mape"]), use_container_width=True, config=PLOT)
+    ed.caption("FIG. 07", "Error porcentual (MAPE) del SARIMAX en cada una de las 13 ventanas de 4 semanas.",
+               "Modelo entrenado en este proyecto")
+ed.metrics([
+    ("Error medio", pct(bt_mean),
+     f"Media de las 13 ventanas. Es más alto que el {es(sarimax['mape'])}% del examen: aquel examen fue de los "
+     "favorables."),
+    ("Error típico", pct(bt_median), "Mediana: la mitad de las ventanas queda por debajo. Las peores arrastran la media."),
+    ("Peor ventana", pct(bt_max),
+     f"{int((bt['MAPE'] > 13).sum())} de las 13 ventanas superan el 13%; {bt_under_10} de 13 quedan por debajo del 10%."),
+])
+ed.insight(
+    f"El {es(sarimax['mape'])}% del examen fue mejor que el error medio de las 13 ventanas ({es(bt_mean)}%). Si hubiera "
+    f"que quedarse con un solo número para planificar, sería <b>{RANGO}, con semanas malas de hasta el "
+    f"{es(bt_max)}%</b>."
+)
+
+ed.subhead("¿Dónde falla?")
+worst_names = " y ".join(LABELS[e].lower() for e in worst_events)
+ed.insight(
+    f"Las dos peores ventanas coinciden con {'la ' if worst_events == ['war'] else ''}{worst_names}. En la primera, "
+    f"el modelo había visto {worst_seen[0]} semanas de ese tipo de evento al entrenar; en la segunda, "
+    f"{worst_seen[1]}. <b>No puede cuantificar lo que nunca ha visto</b>, y esa es la limitación más importante "
+    "para usarlo con eventos nuevos.",
+    aside=(
+        "El backtesting solo se ejecutó con el SARIMAX, no con el SARIMA: mide cuánto varía el error del modelo con "
+        "contexto, no si sigue siendo mejor que el base en cada ventana. Como en el examen, cada ventana usa los "
+        "eventos reales de esas 4 semanas."
+    ),
+)
+
+ed.subhead("¿Ha dejado el modelo información sin capturar?")
+ed.insight(
+    f"Revisé los errores del modelo sobre los datos de entrenamiento (los residuos). Para hacerlo bien hay que "
+    f"apartar las primeras {rd['n_excluded'] - 1} semanas —el modelo todavía no ha «arrancado» y su error llega a "
+    f"{es(rd['first_residual'])} en escala logarítmica, frente a {es(sigma, 2)} habitual— y una más "
+    f"({fecha(rd['echo_date'])}) que arrastra ese mismo "
+    f"eco. Con las {rd['n_kept']} restantes no aparece autocorrelación clara ({pvalue(rd['lb'][10])} y "
+    f"{pvalue(rd['lb'][20])}) y los residuos son compatibles con una distribución normal ({pvalue(rd['shapiro_p'])}).",
+    aside=(
+        f"Ljung-Box a 10 y 20 retardos y Shapiro-Wilk sobre {rd['n_kept']} de {rd['n_total']} residuos. Con d=1 y D=1 "
+        "(s=52) las primeras 53 observaciones son inicialización difusa, no innovaciones del modelo. La semana del "
+        f"{fecha(rd['echo_date'])} queda 52 semanas después de la 53 y su residuo ({sgn(rd['echo_value'])}) es "
+        "compatible con un eco de esa inicialización. El p de 20 retardos queda cerca del umbral habitual: no hay "
+        "evidencia de autocorrelación, pero tampoco un margen amplio."
+    ),
+)
+
+# ============================================================ 08 · ¿CUÁNTO PESA CADA SEÑAL? ==
+ed.beat(
+    "efectos", "08", "Explicabilidad", "¿Cuánto pesa cada señal?",
+    deck=(
+        "El SARIMAX no es una caja negra: cada señal tiene un coeficiente que se traduce en un cambio porcentual de "
+        "las ventas <b>manteniendo todo lo demás igual</b>. La pregunta ya no es cuánto pesa cada una, sino "
+        "<b>cuáles de esos números merecen confianza</b>."
+    ),
+)
+ed.subhead("¿Cuánto cambian las ventas con cada señal?", level="wide")
+with ed.figure("coeficientes"):
+    st.plotly_chart(charts.coefficient_impact(coefficients_display, PROMO_MAX), use_container_width=True, config=PLOT)
+    ed.caption("FIG. 08", "Cambio estimado de las ventas cuando la señal está activa. Las barras claras son "
+                          "estimaciones inciertas (el modelo no las distingue de cero).", "Modelo entrenado en este proyecto")
+
+card_detail = {
+    "promotion": (f"{sgn(promo_at_max)}%", f"a intensidad máxima ({PROMO_MAX * 100:.0f}%)",
+                  f"Cada punto de intensidad se asocia a un {sgn(promo_per_point, 2)}% de ventas. Es una decisión del "
+                  "negocio, no un experimento: no permite hablar de causa."),
+    "strike": (None, "mientras dura",
+               f"Estimación llamativa, apoyada en solo {ev['strike']['episodes']} episodios de hasta "
+               f"{ev['strike']['max_run']} semanas: no hay evidencia suficiente para fiarse del número exacto."),
+    "war": (None, "mientras dura",
+            f"Estadísticamente clara, pero sale de {'un único episodio' if ev['war']['episodes'] == 1 else str(ev['war']['episodes']) + ' episodios'} "
+            f"de {ev['war']['weeks']} semanas seguidas: no se puede separar de todo lo demás que pasó entonces."),
+    "logistics": (None, "mientras dura",
+                  f"{ev['logistics']['episodes']} episodios de hasta {ev['logistics']['max_run']} semanas: la "
+                  "estimación más repetida entre los eventos adversos."),
+    "other_incident": (None, "mientras dura",
+                       f"Efecto pequeño y poco claro, con {ev['other_incident']['episodes']} episodios. Aun así, dos "
+                       "de las semanas de examen fueron de este tipo."),
+}
+cards = []
+for c in sorted(coefficients_display, key=lambda c: (not c["significant"], -abs(c["pct_impact"]))):
+    var = c["variable"]
+    stat, label, text = card_detail[var]
+    color = ("var(--positive)" if c["pct_impact"] > 0 else "var(--negative)") if c["significant"] else "var(--muted)"
+    cards.append({
+        "tag": f"{'Efecto fiable' if c['significant'] else 'Efecto incierto'} · "
+               f"<span style=\"text-transform:none;letter-spacing:0\">{pvalue(c['p_value'])}</span>",
+        "title": LABELS[var], "color": color,
+        "stat": stat or f"{sgn(c['pct_impact'])}%", "stat_label": label, "text": text,
+    })
+with ed.figure("efectos-cards"):
+    ed.cards(cards, count=len(cards))
+ed.insight(
+    f"Solo <b>{n_significant} de las {len(coefficients)} señales</b> tienen un efecto que el modelo distingue de cero: "
+    f"{', '.join(significant_names[:-1])} y {significant_names[-1]}. {uncertain_txt.capitalize()} tienen estimaciones "
+    "llamativas pero inciertas. Y la guerra, aunque clara en los números, descansa en un único episodio.",
+    aside=(
+        f"Coeficientes del SARIMAX entrenado con las {n_train} semanas de entrenamiento; impacto = exp(β) − 1. El "
+        f"modelo final del Playground se reajustó con las {n_weeks} semanas y sus valores cambian algo (promoción a "
+        f"intensidad máxima: {sgn(impact(betas['promotion'], PROMO_MAX))}% frente a {sgn(promo_at_max)}%). La "
+        "promoción es continua (de 0 a 0,18): se lee por punto de intensidad, que aquí interpretamos como porcentaje "
+        "de descuento. Con tan pocos episodios conviene leer los p-valores con cautela."
+    ),
+)
+ed.insight(
+    "Todo esto son <b>asociaciones dentro del modelo, no causas</b>: no hay un experimento detrás, y los eventos "
+    "coinciden con otras cosas (calendario, estacionalidad). Y la promoción, en concreto, es una decisión del "
+    "negocio, no algo que ocurra al azar.",
+    tight=True,
+)
+
+# ============================================================ 09 · PONLO A PRUEBA ==
+ed.beat(
+    "playground", "09", "Playground", "Ponlo a prueba", weight="major",
+    deck=(
+        "Mueve las señales como si fueras a planificar las próximas semanas: ¿qué pasa si lanzo una promoción? ¿Y "
+        "si coincide con un problema logístico? El modelo final genera la predicción en vivo. Es un <b>simulador de "
+        "escenarios, no una bola de cristal</b>: el resultado depende de que el evento ocurra tal como lo defines."
+    ),
+)
+ed.note(
+    "<b>Detalle técnico.</b> El escenario base supone que no hay ninguna señal activa. Las señales que elijas se "
+    f"mantienen activas todas las semanas del horizonte. Modelo final entrenado con las {n_weeks} semanas."
+)
+
+with ed.split("playground", "4-8") as (pg_left, pg_right):
+    with pg_left:
+        horizon = st.slider("Horizonte de predicción (semanas)", 1, 8, 4)
+        promotion = st.select_slider(
+            "Intensidad de promoción", options=[0.0, 0.05, 0.08, 0.12, 0.18], value=0.0,
+            format_func=lambda v: "Sin promoción" if v == 0 else f"{v * 100:.0f}% de descuento",
+        )
+        st.markdown("**Eventos activos**")
         strike = st.checkbox("Huelga")
         war = st.checkbox("Guerra / conflicto")
-    with c2:
         logistics = st.checkbox("Problema logístico")
         other_incident = st.checkbox("Otra incidencia")
 
-scenario_df = scenario_from_inputs(last_date, horizon, promotion, strike, war, logistics, other_incident)
-base_df = scenario_from_inputs(last_date, horizon, 0.0, False, False, False, False)
+    scenario_df = scenario_from_inputs(last_date, horizon, promotion, strike, war, logistics, other_incident)
+    base_df = scenario_from_inputs(last_date, horizon, 0.0, False, False, False, False)
+    scenario_result = predict_scenario(final_model, scenario_df)
+    base_result = predict_scenario(final_model, base_df)
+    scenario_total, base_total = scenario_result["forecast"].sum(), base_result["forecast"].sum()
+    delta_pct = (scenario_total / base_total - 1) * 100
 
-scenario_result = predict_scenario(final_model, scenario_df)
-base_result = predict_scenario(final_model, base_df)
+    with pg_right:
+        st.plotly_chart(charts.playground_forecast(df, scenario_result), use_container_width=True, config=PLOT)
+        ed.caption("FIG. 09", "Últimas 20 semanas reales y predicción de tu escenario. La banda es el intervalo al 95%, "
+                              "válido solo si el escenario ocurre tal como lo defines.", "Modelo final entrenado en este proyecto")
 
-scenario_total = scenario_result["forecast"].sum()
-base_total = base_result["forecast"].sum()
-delta_pct = (scenario_total / base_total - 1) * 100
+ed.metrics([
+    (f"Escenario base ({horizon} sem.)", eur(base_total), "Ventas previstas si no ocurre nada especial."),
+    ("Tu escenario", eur(scenario_total),
+     f"{sgn(delta_pct)}% frente al escenario base." if any([promotion, strike, war, logistics, other_incident])
+     else "Activa alguna señal para ver cómo cambia la previsión."),
+    ("Diferencia", eur(scenario_total - base_total, sign=abs(scenario_total - base_total) >= 0.5),
+     "Ventas que se ganan o se pierden en el horizonte elegido."),
+])
 
-with pg_right:
-    st.plotly_chart(charts.playground_forecast(df, scenario_result), use_container_width=True,
-                     config={"displayModeBar": False})
-
-st.write("")
-r1, r2, r3 = st.columns(3)
-with r1:
-    st.metric(f"Escenario base ({horizon} sem.)", eur(base_total))
-with r2:
-    st.metric("Tu escenario", eur(scenario_total), f"{delta_pct:+.1f}% vs base")
-with r3:
-    st.metric("Diferencia en euros", eur(scenario_total - base_total, sign=True))
-
-active = []
-if promotion > 0:
-    active.append(("promotion", promotion))
-if strike:
-    active.append(("strike", 1))
-if war:
-    active.append(("war", 1))
-if logistics:
-    active.append(("logistics", 1))
-if other_incident:
-    active.append(("other_incident", 1))
-
+active = [(k, v) for k, v in (("promotion", promotion), ("strike", int(strike)), ("war", int(war)),
+                               ("logistics", int(logistics)), ("other_incident", int(other_incident))) if v]
 if active:
-    ui.h3("¿Por qué esta predicción?")
-    drivers = []
+    parts = " · ".join(f"{sgn(impact(betas[var], val))}% por {LABELS[var].lower()}" for var, val in active)
+    ed.subhead("¿Por qué esta predicción?")
+    ed.insight(
+        f"Respecto al escenario base, tu combinación mueve la previsión un <b>{sgn(delta_pct)}%</b> "
+        f"({eur(scenario_total - base_total, sign=True)}). Los factores en juego: {parts}. Se combinan "
+        "multiplicando, no sumando.",
+        tight=True,
+    )
+    uncertain, too_long = [], []
     for var, val in active:
-        c = coef_map.get(var)
-        if not c:
-            continue
-        impact = pct_impact_for(c["beta"], val)
-        sign = "+" if impact > 0 else ""
-        drivers.append(f"{sign}{impact:.1f}% por {labels.get(var, var).lower()}")
-    driver_text = " · ".join(drivers)
-    tone = "pos" if delta_pct > 0 else ("neg" if delta_pct < 0 else "")
-    delta_txt = ui.stat(f"{delta_pct:+.1f}%", tone)
-    ui.finding(
-        f"Respecto al escenario base, tu combinación de eventos mueve la predicción un "
-        f"{delta_txt} ({eur(scenario_total - base_total, sign=True)}). "
-        f"Los factores en juego: {driver_text}."
-    )
-else:
-    ui.finding("Activa alguna variable arriba para ver cómo cambia la predicción respecto al escenario base.")
-ui.section_close()
+        e, name = ev[var], LABELS[var].lower()
+        if var != "promotion" and not coef_map[var]["significant"]:
+            uncertain.append(f"<b>{name}</b> ({pvalue(coef_map[var]['p_value'])}, {e['episodes']} episodios)")
+        elif var != "promotion" and e["episodes"] == 1:
+            uncertain.append(f"<b>{name}</b> (un único episodio de {e['weeks']} semanas)")
+        if horizon > e["max_run"]:
+            too_long.append(f"{name}, {e['max_run']} semanas")
+    warnings = []
+    if uncertain:
+        warnings.append("Estimaciones poco fiables en este escenario: " + ", ".join(uncertain) + ". Úsalas como orientación, "
+                        "no como cifra.")
+    if too_long:
+        warnings.append("Duración máxima en el histórico: " + "; ".join(too_long) + f". Tu escenario las mantiene "
+                        f"{horizon} semanas seguidas.")
+    n_adverse = sum(1 for v, _ in active if v != "promotion")
+    if n_adverse >= 2:
+        warnings.append("El histórico no contiene ninguna semana con dos eventos adversos a la vez: esta combinación es una "
+                        "extrapolación del modelo.")
+    elif promotion > 0 and n_adverse:
+        warnings.append(f"Solo {ev['promo_with_adverse']} semanas del histórico combinan promoción y evento adverso.")
+    if promotion > 0:
+        level_n = int((df["promotion"].round(2) == promotion).sum())
+        warnings.append(f"La intensidad de promoción del {promotion * 100:.0f}% aparece solo en {level_n} semanas del histórico.")
+    for w in warnings:
+        ed.note(w)
 
-# ============================================================ RESULTADOS ==
-ui.section_open("resultados")
-ui.eyebrow("¿Funciona de verdad?")
-ui.h2("Resultados")
-ui.h3("Performance técnica")
-perf_cols = st.columns(3)
-perf_rows = [("MAE", "mae", "€"), ("MAPE", "mape", "%"), ("RMSE", "rmse", "€")]
-for c, (label, key, unit) in zip(perf_cols, perf_rows):
-    with c:
-        sarima_v = metrics["sarima"][key]
-        sarimax_v = metrics["sarimax"][key]
-        fmt = (lambda v: f"{v:,.0f} {unit}".replace(",", ".")) if unit == "€" else (lambda v: f"{v:.2f}{unit}")
-        st.markdown(
-            f'<div class="co-card" style="text-align:center;">'
-            f'<div style="font-size:.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin-bottom:.6rem;">{label}</div>'
-            f'<div style="display:flex; justify-content:center; gap:1.6rem;">'
-            f'<div><div class="kpi-num" style="font-size:1.3rem; color:var(--red);">{fmt(sarima_v)}</div>'
-            f'<div class="kpi-label">SARIMA</div></div>'
-            f'<div><div class="kpi-num" style="font-size:1.3rem; color:var(--green);">{fmt(sarimax_v)}</div>'
-            f'<div class="kpi-label">SARIMAX</div></div>'
-            f'</div></div>',
-            unsafe_allow_html=True,
-        )
-
-st.write("")
-sarimax_mape = metrics["sarimax"]["mape"]
-ui.finding(
-    f"<b>¿Qué significa?</b> Con SARIMAX, el error porcentual medio baja a {ui.stat(f'{sarimax_mape:.2f}%', 'pos')} "
-    "— dentro del rango \"bueno\" para forecasting de retail (por debajo del 10%). En la práctica: de cada "
-    f"100 € previstos, el modelo se desvía en menos de {sarimax_mape:.0f} €."
+# ============================================================ 10 · ¿QUÉ HEMOS DESCUBIERTO? ==
+ed.beat(
+    "resultado", "10", "Resultado", "¿Qué hemos descubierto?", weight="major",
+    deck=[
+        f"Sobre las {test_weeks} semanas de examen, incorporar el contexto reduce el error de previsión del "
+        f"{es(sarima['mape'])}% al {es(sarimax['mape'])}%: un <b>{imp['mape']:.0f}% menos</b>. Es una mejora real, "
+        "pero el resultado que conviene llevarse es más matizado.",
+        "La mejora se concentra en las semanas con incidencia; en las demás, los dos modelos rinden parecido. Y el "
+        "error que cabe esperar de verdad, según las 13 ventanas, es más alto que el del examen.",
+    ],
+)
+ed.band(
+    "El matiz",
+    'El contexto ayuda sobre todo <span class="accent">cuando ocurre algo</span>. Cuando no ocurre nada, los dos '
+    "modelos rinden casi igual.",
+    "Añadir señales externas no mejora todas las semanas: protege de las semanas malas.",
+)
+ed.subhead("En resumen")
+ed.metrics([
+    ("Mejora en el examen", f"−{imp['mape']:.0f}%",
+     f"El error (MAPE) baja de {es(sarima['mape'])}% a {es(sarimax['mape'])}% en {test_weeks} semanas. Es el mejor "
+     "caso."),
+    ("De dónde viene", f"{tb['n_event']} de {tb['n']}",
+     f"La mejora se concentra en las {tb['n_event']} semanas con incidencia; en las otras {tb['n_quiet']} la "
+     f"diferencia es pequeña ({es(tb['quiet_ape']['sarima'])}% frente a {es(tb['quiet_ape']['sarimax'])}%)."),
+    ("Error esperable", pct(bt_mean),
+     f"Error medio del SARIMAX en 13 ventanas distintas (mediana {es(bt_median)}%, máximo {es(bt_max)}%)."),
+    ("Efectos fiables", f"{n_significant} de {len(coefficients)}",
+     f"Señales cuyo efecto el modelo distingue de cero: {', '.join(significant_names[:-1])} y "
+     f"{significant_names[-1]}."),
+])
+ed.insight(
+    "No hemos demostrado que el contexto mejore <b>siempre</b> la previsión. Hemos comprobado que ayuda cuando "
+    "ocurre algo, y hemos medido cuánto puede fallar cuando lo que ocurre es nuevo."
 )
 
-ui.h3("Backtesting temporal")
-ui.body(
-    "Un único split train/test puede salir favorable por casualidad, así que repetí el experimento "
-    "en múltiples ventanas del pasado: entrené hasta la semana T, predije las 4 siguientes, avancé "
-    "y repetí."
+# ============================================================ 11 · ¿QUÉ PODRÍA HACER EL NEGOCIO? ==
+ed.beat(
+    "implicaciones", "11", "Implicaciones", "¿Qué podría hacer el negocio con esto?",
+    deck=(
+        "El modelo no decide por sí solo. Lo que aporta es una forma de <b>plantear la decisión con números y con "
+        "márgenes de error</b>."
+    ),
 )
-st.plotly_chart(charts.backtest_mape(backtest_df), use_container_width=True, config={"displayModeBar": False})
-mean_mape_bt = backtest_df["MAPE"].mean()
-quality = "excelente" if mean_mape_bt < 5 else ("buena" if mean_mape_bt < 10 else "aceptable")
-ui.finding(
-    f"MAPE medio del backtesting: <b>{mean_mape_bt:.2f}%</b> — calidad {quality}, estable a lo largo "
-    f"de {len(backtest_df)} ventanas distintas. Comprobé que el modelo generaliza: no depende de un "
-    "periodo de test favorable.",
+with ed.figure("decisiones"):
+    ed.cols([
+        {"tag": "Planificar pedidos", "title": "Pedir con margen, no con un número",
+         "text": f"Usar el error esperable ({RANGO}) como colchón habitual, y el "
+                 "simulador para ajustar cuando ya se conoce una promoción o una incidencia. Seguimiento: el error de "
+                 "previsión (MAPE) de cada semana."},
+        {"tag": "Presupuestar riesgos", "title": "Estimar solo lo que se puede estimar",
+         "text": f"Los problemas logísticos ({sgn(coef_map['logistics']['pct_impact'], 0)}%) y la guerra "
+                 f"({sgn(coef_map['war']['pct_impact'], 0)}%) tienen un efecto medible. Huelga y otras incidencias aún "
+                 "no tienen episodios suficientes para dimensionar una contingencia: habría que acumular más histórico."},
+        {"tag": "Medir promociones", "title": "Probar antes de optimizar",
+         "text": f"El modelo asocia cada punto de intensidad con un {sgn(promo_per_point, 2)}% de ventas, pero la promoción "
+                 "es una decisión del negocio. Para saber si un descuento compensa su coste habría que probarlo con "
+                 "semanas o tiendas de control y medir el resultado."},
+    ])
+ed.subhead("Una advertencia importante")
+ed.insight(
+    f"Son <b>hipótesis de negocio</b>, no conclusiones del modelo. El modelo describe cómo se comportaron las ventas "
+    f"en estos {len(years)} años; decidir qué hacer requiere probar la acción y medir su efecto.",
+    tight=True,
 )
 
-with st.expander("Diagnóstico de residuos — ¿el modelo dejó información sin capturar?"):
-    lb_ok = all(r["p_value"] > 0.05 for r in residual_diag["ljung_box"])
-    sw_ok = residual_diag["shapiro"]["p_value"] > 0.05
-    _mean_abs = abs(residual_diag["mean"])
-    _mean_note = ("cercana a 0, correcto." if _mean_abs < 0.01 else
-                  "leve sesgo, dentro de lo esperable en datos reales." if _mean_abs < 0.05 else
-                  "alejada de 0, revisar.")
-    st.markdown(
-        f"- **Media de residuos**: {residual_diag['mean']:.5f} — {_mean_note}\n"
-        f"- **Test de Ljung-Box** (autocorrelación): {'sin autocorrelación significativa en los lags evaluados — el modelo captura la estructura temporal.' if lb_ok else 'hay autocorrelación residual en algún lag — margen de mejora.'}\n"
-        f"- **Test de Shapiro-Wilk** (normalidad): p={residual_diag['shapiro']['p_value']:.4f} — "
-        f"{'no se rechaza la normalidad.' if sw_ok else 'los residuos no son perfectamente normales, algo habitual en datos reales y que no invalida el modelo si el resto de diagnósticos es correcto.'}"
-    )
-ui.section_close()
+# ============================================================ 12 · LO QUE SABEMOS Y LO QUE NO ==
+ed.beat("limitaciones", "12", "Limitaciones", "Lo que sabemos y lo que no sabemos")
+ed.cards([
+    {"title": "Lo que el modelo sí puede hacer", "color": "var(--positive)", "points": [
+        f"Prever las ventas semanales agregadas con un <b>error {RANGO}</b> de media, con semanas de hasta "
+        f"el {es(bt_max)}%.",
+        f"Cuantificar, con incertidumbre, el efecto de <b>{', '.join(significant_names[:-1])} y "
+        f"{significant_names[-1]}</b>.",
+        "Simular <b>un evento cada vez</b> y ver cómo cambia la previsión respecto a un escenario base.",
+        f"Mantener el error por debajo del 10% en <b>{bt_under_10} de 13 ventanas</b> de 4 semanas.",
+    ]},
+    {"title": "Lo que el modelo no puede hacer", "color": "var(--negative)", "points": [
+        "<b>Predecir cuándo</b> ocurrirá una huelga, un conflicto o una incidencia: solo responde si se le dice "
+        "que ocurre.",
+        f"Estimar con fiabilidad el impacto de <b>{uncertain_txt}</b>: hay muy pocos episodios.",
+        "Prever bien un <b>evento que nunca ha visto</b>: las dos peores ventanas fueron las de la guerra, en su "
+        "primera aparición.",
+        "Bajar al detalle de <b>tienda, categoría o producto</b>: trabaja con ventas semanales agregadas.",
+        "Distinguir <b>causa de correlación</b>: no hay experimento detrás, y la promoción es una decisión del negocio.",
+        "Evaluar <b>combinaciones</b> de eventos adversos: en el histórico nunca coinciden dos.",
+    ]},
+])
+ed.subhead("Y los límites del propio análisis")
+with ed.figure("limites-analisis"):
+    ed.lists([
+        {"title": "Cómo está hecho", "points": [
+            "El examen y el backtesting usan los eventos <b>reales</b> de cada semana, no eventos previstos.",
+            f"Solo hay {len(years)} años de datos: la estacionalidad anual (52 semanas) se estima con {len(years)} "
+            "ciclos, y uno se pierde al diferenciar.",
+            "El backtesting solo se ejecutó con el SARIMAX: no se comparó con el SARIMA ventana a ventana.",
+            "El intervalo de predicción supone que se conocen las señales de cada semana.",
+        ]},
+        {"title": "Qué probaría a continuación", "points": [
+            "Medir <b>cuánto aporta cada señal por separado</b>, en vez de las cinco a la vez.",
+            "Probar una especificación <b>con menos diferenciación</b> y comparar el error.",
+            "Incorporar el <b>índice de precios y la temperatura</b>, que ya están en el fichero.",
+            "Comparar con otros modelos de referencia (suavizado exponencial, modelos de árboles) y repetir el "
+            "backtesting para los dos modelos.",
+        ]},
+    ])
 
-# ============================================================ IMPACTO ==
-ui.section_open("impacto", tight=True)
-ui.impact_banner(
-    f'Ignorar el contexto cuesta un <span class="accent-neg">{metrics["improvement_pct"]["mape"]:.0f}% más de error.</span> '
-    f'Incluirlo lo convierte en un <span class="accent-pos">simulador de decisiones.</span>',
-    quote='"El modelo ya no solo predice — permite preguntar qué pasaría antes de que pase."',
+# ============================================================ 13 · DEL DATO A LA DECISIÓN ==
+ed.beat(
+    "conclusion", "13", "Conclusión", "Del dato a la decisión", weight="major",
+    deck=[
+        f"Con cinco señales de contexto, el SARIMAX reduce el error de previsión un <b>{imp['mape']:.0f}%</b> frente al "
+        f"SARIMA en el examen de {test_weeks} semanas (del {es(sarima['mape'])}% al {es(sarimax['mape'])}%). La mejora "
+        "existe, pero se concentra en las semanas en que ocurre algo; en las demás, los dos modelos rinden casi igual.",
+        f"El resultado más útil no es ese {imp['mape']:.0f}%, sino saber <b>cuánto se puede confiar en él</b>: un error "
+        f"{RANGO} con semanas de hasta el {es(bt_max)}%, efectos fiables solo "
+        f"para {n_significant} de las {len(coefficients)} señales y ninguna garantía ante eventos que el modelo no ha "
+        "visto.",
+        "El siguiente paso no sería un modelo más complejo. Sería preguntarse: <b>¿qué eventos podemos conocer con "
+        "antelación y cuáles no?</b> Solo los primeros mejoran la previsión; los segundos sirven para simular "
+        "escenarios.",
+    ],
 )
-ui.section_close()
-
-# ============================================================ INSIGHTS ==
-ui.section_open("insights")
-ui.eyebrow("De los resultados a las conclusiones")
-ui.h2("Insights")
-ui.insight_card("01", "El contexto importa más que el histórico puro",
-                 f"Las 5 variables exógenas reducen el error un {metrics['improvement_pct']['mape']:.0f}% "
-                 "frente a un modelo que solo mira el pasado.",
-                 "Cualquier forecast de retail debería incorporar un calendario de eventos, no solo ventas históricas.")
-ui.insight_card("02", "Las promociones son la palanca de mayor impacto positivo",
-                 f"Cada punto porcentual de descuento se asocia a un +{promo_per_pp:.2f}% en ventas "
-                 f"({'estadísticamente significativo' if coef_map['promotion']['significant'] else 'no significativo con el histórico actual'}) "
-                 f"— hasta un {promo_at_max:+.1f}% al nivel máximo histórico ({PROMO_MAX*100:.0f}%).",
-                 "El coeficiente permite estimar si el descuento compensa su coste antes de lanzarlo.")
-negative_events = [c for c in coefficients if c["variable"] != "promotion"]
-significant_negative = [c for c in negative_events if c["significant"]]
-worst_negative = min(significant_negative or negative_events, key=lambda c: c["pct_impact"])
-biggest_point_estimate = min(negative_events, key=lambda c: c["pct_impact"])
-caveat = ""
-if biggest_point_estimate["variable"] != worst_negative["variable"]:
-    caveat = (f' <i>{labels.get(biggest_point_estimate["variable"])} muestra un punto estimado aún mayor '
-              f'({biggest_point_estimate["pct_impact"]:.1f}%), pero con solo pocas semanas de histórico su '
-              f'coeficiente no es estadísticamente significativo (p={biggest_point_estimate["p_value"]:.2f}) — '
-              'no hay evidencia suficiente para fiarse del número exacto.</i>')
-ui.insight_card("03", f"{labels.get(worst_negative['variable'])} es el evento adverso más fiable de cuantificar",
-                 f"Impacto estimado de {worst_negative['pct_impact']:.1f}% en ventas mientras dura "
-                 f"(estadísticamente significativo, p={worst_negative['p_value']:.3f}).{caveat}",
-                 "Dimensiona el presupuesto de contingencia por tipo de evento, no de forma genérica.")
-ui.insight_card("04", "El modelo generaliza, no memoriza un split favorable",
-                 f"El backtesting sobre {len(backtest_df)} ventanas temporales distintas confirma un "
-                 f"MAPE medio de {mean_mape_bt:.2f}%, sin picos erráticos.",
-                 "Da confianza para usarlo en producción, no solo como demostración puntual.")
-ui.insight_card("05", "Los residuos no dejan señal sin explotar",
-                 "El test de Ljung-Box no detecta autocorrelación relevante en los residuos del modelo.",
-                 "No hay patrón obvio pendiente de capturar con los datos disponibles hoy.")
-ui.section_close()
-
-# ============================================================ DECISIONES ==
-ui.section_open("decisiones")
-ui.eyebrow("¿Qué haría con esto?")
-ui.h2("Decisiones que habilita")
-ui.decision_flow("El histórico solo no basta para prever inventario",
-                  "Ajustar pedidos según el escenario más probable, no solo la media histórica",
-                  "Reducir roturas de stock y sobreinventario",
-                  "Error de previsión (MAPE)")
-st.write("")
-ui.decision_flow(f"{labels.get(worst_negative['variable'])} cuesta un {abs(worst_negative['pct_impact']):.1f}% en ventas",
-                  "Cuantificar el impacto financiero antes de que ocurra el evento",
-                  "Dimensionar el plan de contingencia por tipo de riesgo",
-                  "€ en riesgo por escenario")
-st.write("")
-ui.decision_flow(f"Las promociones suman +{promo_per_pp:.2f}% por punto porcentual de descuento",
-                  "Usar el coeficiente para estimar el retorno de cada nivel de descuento",
-                  "Optimizar la intensidad de la promoción, no solo lanzarla",
-                  "ROI de la promoción")
-ui.section_close()
-
-# ============================================================ LIMITACIONES ==
-ui.section_open("limitaciones")
-ui.eyebrow("Honestidad ante todo")
-ui.h2("Limitaciones")
-st.write("")
-lc1, lc2 = st.columns(2, gap="large")
-with lc1:
-    st.markdown('<p class="limit-col-title">Lo que el modelo SÍ puede hacer</p>', unsafe_allow_html=True)
-    st.markdown(
-        """<ul class="limit-list">
-        <li>Predecir ventas semanales agregadas con un error medio por debajo del 6%.</li>
-        <li>Cuantificar el impacto aislado de cada evento externo conocido.</li>
-        <li>Simular escenarios individuales y combinados antes de que ocurran.</li>
-        <li>Generalizar de forma estable, validado con backtesting en múltiples ventanas.</li>
-        </ul>""",
-        unsafe_allow_html=True,
-    )
-with lc2:
-    st.markdown('<p class="limit-col-title">Lo que el modelo NO puede hacer</p>', unsafe_allow_html=True)
-    st.markdown(
-        """<ul class="limit-list">
-        <li>Predecir eventos nuevos que no existen en el histórico (asume que ocurren, no cuándo).</li>
-        <li>Bajar al detalle de tienda, categoría o SKU — trabaja a nivel agregado semanal.</li>
-        <li>Garantizar que el efecto de cada variable se mantenga si el negocio cambia estructuralmente.</li>
-        <li>Distinguir causalidad de correlación sin un diseño experimental adicional.</li>
-        </ul>""",
-        unsafe_allow_html=True,
-    )
-st.markdown(
-    '<div class="limit-note"><p class="co-body">'
-    "Para mejorar el modelo, incorporaría granularidad diaria o por tienda, variables macro adicionales "
-    "(precio de la competencia, clima real en vez de proxy), y más historial para separar el efecto de "
-    "cada tipo de evento con mayor confianza estadística: hoy huelga, guerra y otra incidencia tienen "
-    "pocas observaciones (entre 4 y 6 semanas cada una)."
-    "</p></div>",
-    unsafe_allow_html=True,
-)
-ui.section_close()
-
-# ============================================================ CONCLUSIÓN ==
-ui.section_open("conclusion")
-ui.eyebrow("Del dato a la decisión")
-ui.h2("Conclusión")
-ui.lead(
-    f"Incorporar contexto externo mejora la previsión un {metrics['improvement_pct']['mape']:.0f}% frente al "
-    "histórico puro, y convierte el modelo en un simulador de escenarios. El modelo no sustituye la "
-    "decisión de negocio: la apoya con mejor información."
-)
-ui.section_close()
-
-ui.footer_minimal(
-    name="Borja Mora Méndez",
-    repo_url="https://github.com/BORJAMOME/forecast-ventas-retail-app",
-    linkedin_url="https://www.linkedin.com/in/borja-mora-mendez/",
-    email="borja.mora.mendez@gmail.com",
-)
+ed.colophon("Borja Mora Méndez", [
+    ("Repositorio del proyecto", "https://github.com/BORJAMOME/forecast-ventas-retail-app"),
+    ("Portfolio", "https://borjamora.es/"),
+    ("LinkedIn", "https://www.linkedin.com/in/borja-mora-mendez/"),
+    ("Contacto", "mailto:borja.mora.mendez@gmail.com"),
+])
