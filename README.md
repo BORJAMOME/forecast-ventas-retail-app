@@ -4,8 +4,8 @@
 
 Una aplicación interactiva, con formato de reportaje de datos, que compara dos modelos de previsión
 semanal de ventas: uno que solo mira el histórico (SARIMA) y otro que, además, conoce si esa semana hubo
-promoción, huelga, conflicto o problemas logísticos (SARIMAX). La pregunta no es solo cuál acierta más,
-sino **cuánto de esa mejora es fiable**.
+promoción, huelga, conflicto o problemas logísticos (SARIMAX). La pregunta es cuál acierta más y, sobre todo,
+**cuánto de esa mejora es fiable**.
 
 No hace falta saber nada de Machine Learning para seguirla: empieza por el problema, sigue por los datos,
 explica el método sin tecnicismos (el detalle técnico va aparte, en notas al margen) y termina dejándote

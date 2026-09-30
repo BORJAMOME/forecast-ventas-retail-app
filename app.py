@@ -180,7 +180,7 @@ ed.lede(
         "Una cadena retail necesita saber cuánto va a vender cada semana para decidir cuánto stock pedir y cuánto "
         f"personal programar. Comparé dos modelos sobre {n_weeks} semanas de ventas: uno que solo mira el histórico "
         "y otro que, además, sabe si esa semana hubo promoción, huelga, conflicto o problemas logísticos. La "
-        "pregunta no es solo <b>cuál acierta más</b>, sino <b>cuánto de esa mejora es fiable</b>."
+        "pregunta es <b>cuál acierta más</b> y, sobre todo, <b>cuánto de esa mejora es fiable</b>."
     ),
     meta=[
         ("Autor", "Borja Mora Méndez"),
@@ -218,8 +218,8 @@ ed.beat(
         f"{MESES[first_date.month - 1]} de {first_date.year} y {MESES[last_date.month - 1]} de {last_date.year}. "
         "Cada semana viene acompañada de cinco señales que indican qué estaba pasando: la intensidad de la "
         "promoción, y si hubo huelga, conflicto bélico, problemas logísticos u otras incidencias. No hay huecos ni "
-        "semanas duplicadas: el reto no fue limpiar los datos, sino decidir si esas cinco señales ayudaban de verdad "
-        "a prever mejor."
+        "semanas duplicadas, así que el trabajo estuvo en decidir si esas cinco señales ayudaban de verdad a prever "
+        "mejor."
     ),
 )
 ed.provenance([
@@ -251,7 +251,7 @@ with ed.figure("senales"):
          "title": "Otra incidencia", "text": f"Rachas de hasta {ev['other_incident']['max_run']} semanas seguidas."},
     ], count=5)
 ed.insight(
-    "Lo importante no es el porcentaje de semanas, sino el número de <b>episodios</b>. Cuando un evento aparece "
+    "Más que el porcentaje de semanas, importa el número de <b>episodios</b>. Cuando un evento aparece "
     "pocas veces, el modelo puede medir cuánto cambiaron las ventas esas semanas, pero <b>no puede separar su "
     "efecto de todo lo demás que pasó a la vez</b>. La guerra, por ejemplo, es un único episodio.",
     aside=(
@@ -358,7 +358,7 @@ with ed.figure("corte"):
     st.plotly_chart(charts.train_test_split(df, test_weeks), use_container_width=True, config=PLOT)
     ed.caption("FIG. 04", f"Las {n_train} primeras semanas para entrenar y las {test_weeks} últimas como examen.", FUENTE)
 ed.insight(
-    f"El examen cubre de {fecha(test_start, False)} a {fecha(test_end)}. Un detalle que conviene tener presente al "
+    f"El examen cubre del {fecha(test_start, False)} al {fecha(test_end)}. Un detalle que conviene tener presente al "
     f"leer el resultado: en esas {test_weeks} semanas solo hubo <b>{tb['n_event']} con incidencia</b> y "
     f"{'ninguna' if tb['n_promo'] == 0 else tb['n_promo']} con promoción."
 )
@@ -491,8 +491,8 @@ ed.insight(
 ed.subhead("¿Ha dejado el modelo información sin capturar?")
 ed.insight(
     f"Revisé los errores del modelo sobre los datos de entrenamiento (los residuos). Para hacerlo bien hay que "
-    f"apartar las primeras {rd['n_excluded'] - 1} semanas —el modelo todavía no ha «arrancado» y su error llega a "
-    f"{es(rd['first_residual'])} en escala logarítmica, frente a {es(sigma, 2)} habitual— y una más "
+    f"apartar las primeras {rd['n_excluded'] - 1} semanas (el modelo todavía no ha «arrancado» y su error llega a "
+    f"{es(rd['first_residual'])} en escala logarítmica, frente a {es(sigma, 2)} habitual) y una más "
     f"({fecha(rd['echo_date'])}) que arrastra ese mismo "
     f"eco. Con las {rd['n_kept']} restantes no aparece autocorrelación clara ({pvalue(rd['lb'][10])} y "
     f"{pvalue(rd['lb'][20])}) y los residuos son compatibles con una distribución normal ({pvalue(rd['shapiro_p'])}).",
@@ -510,8 +510,8 @@ ed.beat(
     "efectos", "08", "Explicabilidad", "¿Cuánto pesa cada señal?",
     deck=(
         "El SARIMAX no es una caja negra: cada señal tiene un coeficiente que se traduce en un cambio porcentual de "
-        "las ventas <b>manteniendo todo lo demás igual</b>. La pregunta ya no es cuánto pesa cada una, sino "
-        "<b>cuáles de esos números merecen confianza</b>."
+        "las ventas <b>manteniendo todo lo demás igual</b>. Lo que importa aquí es <b>cuáles de esos números "
+        "merecen confianza</b>."
     ),
 )
 ed.subhead("¿Cuánto cambian las ventas con cada señal?", level="wide")
@@ -737,8 +737,8 @@ ed.cards([
         "<b>Predecir cuándo</b> ocurrirá una huelga, un conflicto o una incidencia: solo responde si se le dice "
         "que ocurre.",
         f"Estimar con fiabilidad el impacto de <b>{uncertain_txt}</b>: hay muy pocos episodios.",
-        "Prever bien un <b>evento que nunca ha visto</b>: las dos peores ventanas fueron las de la guerra, en su "
-        "primera aparición.",
+        f"Prever bien un <b>evento que apenas ha visto</b>: las dos peores ventanas coinciden con la guerra, cuando el "
+        f"modelo había visto {worst_seen[0]} y {worst_seen[1]} semanas de ese evento.",
         "Bajar al detalle de <b>tienda, categoría o producto</b>: trabaja con ventas semanales agregadas.",
         "Distinguir <b>causa de correlación</b>: no hay experimento detrás, y la promoción es una decisión del negocio.",
         "Evaluar <b>combinaciones</b> de eventos adversos: en el histórico nunca coinciden dos.",
@@ -770,7 +770,7 @@ ed.beat(
         f"Con cinco señales de contexto, el SARIMAX reduce el error de previsión un <b>{imp['mape']:.0f}%</b> frente al "
         f"SARIMA en el examen de {test_weeks} semanas (del {es(sarima['mape'])}% al {es(sarimax['mape'])}%). La mejora "
         "existe, pero se concentra en las semanas en que ocurre algo; en las demás, los dos modelos rinden casi igual.",
-        f"El resultado más útil no es ese {imp['mape']:.0f}%, sino saber <b>cuánto se puede confiar en él</b>: un error "
+        f"Más útil que ese {imp['mape']:.0f}% es saber <b>cuánto se puede confiar en él</b>: un error "
         f"{RANGO} con semanas de hasta el {es(bt_max)}%, efectos fiables solo "
         f"para {n_significant} de las {len(coefficients)} señales y ninguna garantía ante eventos que el modelo no ha "
         "visto.",
