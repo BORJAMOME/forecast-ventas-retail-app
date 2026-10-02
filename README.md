@@ -128,4 +128,8 @@ expone un componente por función narrativa. Para reutilizarlo: copiar ambos arc
 en el `style.css` del proyecto. Requiere `streamlit==1.58.0` (usa `st.container(key=...)` y el DOM de esa
 versión).
 
+## Licencia
+
+El código está bajo licencia [MIT](LICENSE). Los datasets de `data/` pertenecen a sus fuentes originales y no están incluidos en esta licencia.
+
 **Autor:** Borja Mora Méndez · [LinkedIn](https://www.linkedin.com/in/borjamoramendez/) · [GitHub](https://github.com/BORJAMOME)
