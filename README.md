@@ -75,58 +75,7 @@ Algunas decisiones de rigor que están en la app y conviene conocer:
   su eco), y siempre se informa de cuántas.
 - **Sin causalidad.** Son asociaciones dentro del modelo; la promoción, además, es una decisión del negocio.
 
-## Ejecutarla en tu ordenador
-
-```bash
-pip install -r requirements.txt
-streamlit run app.py
-```
-
-Se abrirá sola en el navegador. Los resultados del modelo ya vienen calculados en `model/artifacts/`, así que
-no hace falta reentrenar nada para verla funcionar.
-
-Solo si cambias el dataset (`data/SALES_FORECASTING_VARIABLES_EXOGENAS.xlsx`) necesitas regenerar esos
-resultados:
-
-```bash
-python model/train.py    # tarda unos 10-15 minutos (entrena 15 modelos en total)
-```
-
-<details>
-<summary>Estructura del proyecto, para quien quiera curiosear el código</summary>
-
-```
-app.py                    la aplicación — toda la narrativa, capítulo a capítulo
-components/
-  editorial.py              sistema editorial: un componente por función narrativa (lede, beat, figure…)
-  charts.py                 gráficos, con la paleta de colores del proyecto
-utils/
-  data_loader.py             carga de datos y resultados (con cache de Streamlit)
-  audit.py                    cifras derivadas de los artefactos y los datos (episodios, desglose del examen…)
-  forecasting.py              genera predicciones en vivo para el Playground
-model/
-  train.py                    entrena los modelos y calcula todos los resultados
-  artifacts/                   resultados ya calculados (métricas, coeficientes, backtesting, residuos…)
-data/                      el dataset original
-assets/editorial.css       sistema de composición editorial (rejilla, niveles de ancho, ritmo, tokens) — reutilizable
-assets/style.css           identidad de este proyecto (paleta y familias tipográficas)
-```
-
-Reconstruyo el modelo final al vuelo a partir de sus parámetros ya ajustados
-(`model/artifacts/final_params.json`) en vez de cargar el modelo completo desde disco: es instantáneo y evita
-guardar un archivo de cientos de MB.
-</details>
-
 ---
-
-### Sistema editorial (reutilizable en otros proyectos de ML)
-
-`assets/editorial.css` convierte el contenedor de Streamlit en una rejilla con cinco niveles de ancho
-(`--canvas-width` / `--wide-width` / `--story-width` / `--reading-width` / `--aside-width`), una escala de
-espacio (`--space-xs` … `--space-3xl`) y una escala tipográfica editorial. `components/editorial.py`
-expone un componente por función narrativa. Para reutilizarlo: copiar ambos archivos y definir la paleta
-en el `style.css` del proyecto. Requiere `streamlit==1.58.0` (usa `st.container(key=...)` y el DOM de esa
-versión).
 
 ## Licencia
 
