@@ -1,5 +1,5 @@
 """
-Previsión de Ventas Retail — SARIMA vs SARIMAX
+Previsión de Ventas Retail: SARIMA vs SARIMAX
 Reportaje digital de datos: del problema de negocio a la decisión, pasando por los datos, el método,
 la evidencia y sus límites.
 

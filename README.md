@@ -35,19 +35,19 @@ comparé dos modelos sobre 156 semanas de ventas y medí no solo cuánto mejora 
 
 Trece capítulos, cada uno responde a una pregunta:
 
-1. **El problema** — por qué prever ventas a ciegas sale caro
-2. **Los datos** — 156 semanas, 5 señales y cuántos *episodios* hay de cada una
-3. **Antes de modelar** — qué se ve a simple vista
-4. **El camino hasta el modelo** — un método pensado para no engañarse
-5. **Los dos modelos** — el que mira el pasado contra el que mira el contexto
-6. **¿De dónde viene la mejora?** — semana a semana, con y sin incidencias
-7. **¿Cuánto podemos fiarnos?** — backtesting en 13 ventanas, dónde falla y diagnóstico de residuos
-8. **¿Cuánto pesa cada señal?** — qué efectos merecen confianza y cuáles no
-9. **Ponlo a prueba** — Playground con avisos cuando el escenario se sale de lo que el histórico ha visto
-10. **¿Qué hemos descubierto?** — el resultado, con sus matices
-11. **¿Qué podría hacer el negocio?** — hipótesis, no conclusiones
-12. **Lo que sabemos y lo que no** — limitaciones y siguientes pasos
-13. **Del dato a la decisión** — conclusión
+1. **El problema**: por qué prever ventas a ciegas sale caro
+2. **Los datos**: 156 semanas, 5 señales y cuántos *episodios* hay de cada una
+3. **Antes de modelar**: qué se ve a simple vista
+4. **El camino hasta el modelo**: un método pensado para no engañarse
+5. **Los dos modelos**: el que mira el pasado contra el que mira el contexto
+6. **¿De dónde viene la mejora?**: semana a semana, con y sin incidencias
+7. **¿Cuánto podemos fiarnos?**: backtesting en 13 ventanas, dónde falla y diagnóstico de residuos
+8. **¿Cuánto pesa cada señal?**: qué efectos merecen confianza y cuáles no
+9. **Ponlo a prueba**: Playground con avisos cuando el escenario se sale de lo que el histórico ha visto
+10. **¿Qué hemos descubierto?**: el resultado, con sus matices
+11. **¿Qué podría hacer el negocio?**: hipótesis, no conclusiones
+12. **Lo que sabemos y lo que no**: limitaciones y siguientes pasos
+13. **Del dato a la decisión**: conclusión
 
 ## Cómo está hecho
 

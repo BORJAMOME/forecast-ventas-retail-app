@@ -45,7 +45,7 @@ def load_csv(name: str) -> pd.DataFrame:
 @st.cache_resource(show_spinner=False)
 def load_final_model():
     """Reconstruye el modelo final aplicando los parámetros ya optimizados
-    (`final_params.json`) con `.filter()` — instantáneo, sin reentrenar.
+    (`final_params.json`) con `.filter()`: instantáneo, sin reentrenar.
     Evita cargar un pickle de cientos de MB: el estado del filtro de Kalman
     para un SARIMAX estacional (s=52) es lo que ocupa espacio, no los datos."""
     df = load_data()
