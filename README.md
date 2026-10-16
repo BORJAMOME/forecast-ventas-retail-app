@@ -2,7 +2,7 @@
 
 En este proyecto he comparado dos modelos de previsión semanal de ventas: SARIMA, basado en datos históricos, y SARIMAX, que incorpora factores externos como promociones, huelgas, conflictos y problemas logísticos. Mi objetivo es analizar cuál ofrece predicciones más precisas y evaluar la fiabilidad de las diferencias entre ambos modelos.
 
-**[➡ Abrir la app](https://forecast-ventas-retail-app-w5msdvcsbuxas94qjcdore.streamlit.app)**
+**[➡ Abrir el proyecto](https://forecast-ventas-retail-app-w5msdvcsbuxas94qjcdore.streamlit.app)**
 
 ## Contexto
 
